@@ -29,19 +29,19 @@
       padding: 2em;
     }
     .day {
-      margin-bottom: 1.5em;
+      margin-bottom: 2em;
       background: #fff;
       padding: 1em;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    .time-block {
+    .interval, .hour {
       display: flex;
       align-items: center;
       gap: 1em;
-      margin: 0.5em 0;
+      margin: 0.4em 0;
     }
-    .time-block img {
+    .interval img, .hour img {
       width: 30px;
       height: 30px;
     }
@@ -50,6 +50,20 @@
       padding: 0.4em;
       margin-top: 0.5em;
       margin-bottom: 1em;
+    }
+    .toggle-btn {
+      margin-top: 1em;
+      font-size: 0.9em;
+      color: #007BFF;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .hourly-details {
+      display: none;
+      margin-top: 0.5em;
+      padding-left: 1.5em;
     }
   </style>
 </head>
@@ -86,6 +100,9 @@
       fetchWeather(selectEl.value);
     });
 
+    const intervalLabels = ["00–06", "06–12", "12–18", "18–24"];
+    const intervalHours = [[0,6],[6,12],[12,18],[18,24]];
+
     function formatDate(dateStr) {
       const [year, month, day] = dateStr.split("-");
       return `${day}-${month}-${year}`;
@@ -115,45 +132,65 @@
         const data = await response.json();
         const timeseries = data.properties.timeseries;
 
-        const forecastByDay = {};
+        const byDay = {};
 
         for (const entry of timeseries) {
           const dt = new Date(entry.time);
           const hour = dt.getHours();
-          if (![6, 12, 18].includes(hour)) continue;
+          const day = dt.toISOString().split("T")[0];
+          const timeStr = dt.toISOString().split("T")[1].slice(0,5);
 
-          const day = dt.toISOString().split('T')[0];
-          if (!forecastByDay[day]) forecastByDay[day] = [];
+          const temp = Math.round(entry.data.instant.details.air_temperature);
+          const wind = Math.round(entry.data.instant.details.wind_speed ?? 0);
+          const precipitation = entry.data.next_6_hours?.details?.precipitation_amount ?? null;
+          const symbol = entry.data.next_6_hours?.summary?.symbol_code ?? null;
 
-          const temp = entry.data.instant.details.air_temperature;
-          const feelsLike = entry.data.instant.details.air_temperature_feel ?? temp;
-          const wind = entry.data.instant.details.wind_speed ?? 0;
-          const precipitation = entry.data.next_6_hours?.details?.precipitation_amount ?? 0;
-          const symbol = entry.data.next_6_hours?.summary?.symbol_code ?? "clearsky_day";
+          if (!byDay[day]) byDay[day] = { intervals: {}, hours: [] };
 
-          forecastByDay[day].push({
-            time: hour.toString().padStart(2, "0") + ":00",
-            temp: Math.round(temp),
-            feelsLike: Math.round(feelsLike),
-            precipitation,
-            wind: Math.round(wind),
-            symbol
+          // group by intervals
+          intervalHours.forEach((range, i) => {
+            if (hour >= range[0] && hour < range[1]) {
+              if (!byDay[day].intervals[intervalLabels[i]] && symbol !== null) {
+                byDay[day].intervals[intervalLabels[i]] = {
+                  temp, wind, precipitation, symbol
+                };
+              }
+            }
+          });
+
+          // store hourly
+          byDay[day].hours.push({
+            hour: dt.getHours().toString().padStart(2, "0") + ":00",
+            temp, wind
           });
         }
 
-        const dayKeys = Object.keys(forecastByDay).slice(0, 3);
-        const html = dayKeys.map((dayStr, i) => {
-          const weekday = getWeekday(dayStr);
+        const days = Object.entries(byDay).slice(0, 3);
+        const html = days.map(([date, content], i) => {
+          const weekday = getWeekday(date);
           const label = getDayLabel(i);
-          const blocks = forecastByDay[dayStr].map(block => `
-            <div class="time-block">
-              <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
+          const dateStr = `${weekday} – ${label} (${formatDate(date)})`;
+
+          const intervals = Object.entries(content.intervals).map(([interval, info]) => `
+            <div class="interval">
+              <img src="https://api.met.no/images/weathericons/svg/${info.symbol}.svg" alt="${info.symbol}">
               <div>
-                <strong>${block.time}</strong> – ${block.temp}°C (${block.feelsLike}°C), ${block.precipitation} mm, ${block.wind} m/s
+                <strong>${interval}</strong> – ${info.temp}°C, ${info.precipitation} mm, ${info.wind} m/s
               </div>
             </div>
           `).join("");
-          return `<div class="day"><strong>${weekday} – ${label} (${formatDate(dayStr)})</strong>${blocks}</div>`;
+
+          const hourly = content.hours.map(h => `
+            <div class="hour"><span><strong>${h.hour}</strong> – ${h.temp}°C, ${h.wind} m/s</span></div>
+          `).join("");
+
+          return `
+            <div class="day">
+              <strong>${dateStr}</strong>
+              ${intervals}
+              <button class="toggle-btn" onclick="toggleDetails(this)">Detailed view</button>
+              <div class="hourly-details">${hourly}</div>
+            </div>`;
         }).join("");
 
         forecastEl.innerHTML = html;
@@ -162,6 +199,13 @@
         forecastEl.innerText = "Could not load weather.";
         console.error(err);
       }
+    }
+
+    function toggleDetails(button) {
+      const details = button.nextElementSibling;
+      const expanded = details.style.display === "block";
+      details.style.display = expanded ? "none" : "block";
+      button.textContent = expanded ? "Detailed view" : "Hide details";
     }
 
     // Initial load
