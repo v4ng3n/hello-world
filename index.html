@@ -11,7 +11,7 @@
 
   <script>
     function updateTime() {
-      document.getElementById("time").textContent = new Date().toLocaleTimeString();
+      document.getElementById("time").textContent = new Date().toLocaleTimeString([], { hour12: false });
     }
     updateTime();
     setInterval(updateTime, 1000);
