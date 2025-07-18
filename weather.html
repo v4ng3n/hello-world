@@ -186,9 +186,7 @@
             </div>
           `).join("");
 
-          // Group hourly into real hours vs later chunks
           const hourly = [];
-          const delayed = [];
           const sorted = content.hours.sort((a, b) => a.raw - b.raw);
 
           let last = sorted[0];
@@ -199,7 +197,6 @@
           }
 
           const hourlyCutoff = last.raw;
-
           const directHours = sorted.filter(h => h.raw <= hourlyCutoff);
           const groupedHours = sorted.filter(h => h.raw > hourlyCutoff);
 
@@ -212,16 +209,17 @@
             `);
           });
 
-          // Group delayed entries into ranges
+          let lastHour = Number(directHours.at(-1)?.hour || "00");
           const grouped = [];
           let group = [];
+
           for (let i = 0; i < groupedHours.length; i++) {
             const current = groupedHours[i];
             if (group.length === 0) {
               group.push(current);
             } else {
-              const last = group[group.length - 1];
-              const gap = (current.raw - last.raw) / 3600000;
+              const prev = group[group.length - 1];
+              const gap = (current.raw - prev.raw) / 3600000;
               if (gap <= 6) {
                 group.push(current);
               } else {
@@ -233,9 +231,10 @@
           if (group.length) grouped.push(group);
 
           grouped.forEach(g => {
-            const start = g[0].hour;
-            const end = g[g.length - 1].hour;
-            const label = `${start}–${end}`;
+            const endHour = Number(g[g.length - 1].hour);
+            const label = `${String(lastHour).padStart(2, "0")}–${String(endHour).padStart(2, "0")}`;
+            lastHour = endHour;
+
             const avgTemp = Math.round(g.reduce((a, b) => a + b.temp, 0) / g.length);
             const totalPrecip = g.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
             const avgWind = Math.round(g.reduce((a, b) => a + b.wind, 0) / g.length);
