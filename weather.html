@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -80,12 +79,9 @@
       <option value="aalborg">Aalborg</option>
       <option value="hormested">Hørmested</option>
       <option value="vojens">Vojens</option>
-    </select>
+    </select><div id="forecast">Loading...</div>
 
-    <div id="forecast">Loading...</div>
-  </main>
-
-  <script>
+  </main>  <script>
     const locations = {
       bergen: { name: "Bergen", lat: 60.3913, lon: 5.3221 },
       aalborg: { name: "Aalborg", lat: 57.0488, lon: 9.9217 },
@@ -209,10 +205,8 @@
             `);
           });
 
-          let lastHour = Number(directHours.at(-1)?.hour || "00");
           const grouped = [];
           let group = [];
-
           for (let i = 0; i < groupedHours.length; i++) {
             const current = groupedHours[i];
             if (group.length === 0) {
@@ -230,11 +224,14 @@
           }
           if (group.length) grouped.push(group);
 
-          grouped.forEach(g => {
-            const endHour = Number(g[g.length - 1].hour);
-            const label = `${String(lastHour).padStart(2, "0")}–${String(endHour).padStart(2, "0")}`;
-            lastHour = endHour;
+          let prevEnd = Number(directHours.at(-1)?.hour || "00");
 
+          grouped.forEach(g => {
+            const start = prevEnd;
+            const end = Number(g[g.length - 1].hour);
+            prevEnd = end;
+
+            const label = `${String(start).padStart(2, "0")}–${String(end).padStart(2, "0")}`;
             const avgTemp = Math.round(g.reduce((a, b) => a + b.temp, 0) / g.length);
             const totalPrecip = g.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
             const avgWind = Math.round(g.reduce((a, b) => a + b.wind, 0) / g.length);
@@ -272,6 +269,5 @@
     }
 
     fetchWeather(selectEl.value);
-  </script>
-</body>
+  </script></body>
 </html>
