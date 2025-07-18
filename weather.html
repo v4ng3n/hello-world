@@ -86,7 +86,7 @@
       bergen: { name: "Bergen", lat: 60.3913, lon: 5.3221 },
       aalborg: { name: "Aalborg", lat: 57.0488, lon: 9.9217 },
       hormested: { name: "Hørmested", lat: 57.528, lon: 10.139 },
-      vojens: { name: "Vojens", lat: 55.250, lon: 9.300 }
+      vojens: { name: "Vojens", lat: 55.25, lon: 9.3 }
     };
 
     const intervalLabels = ["00–06", "06–12", "12–18", "18–24"];
@@ -161,7 +161,8 @@
           byDay[dayKey].hours.push({
             hour: hourStr,
             temp, wind, precipitation, symbol,
-            raw: localDt.getTime()
+            raw: localDt.getTime(),
+            hourInt: hour
           });
         }
 
@@ -205,37 +206,20 @@
             `);
           });
 
-          const grouped = [];
-          let group = [];
-          for (let i = 0; i < groupedHours.length; i++) {
-            const current = groupedHours[i];
-            if (group.length === 0) {
-              group.push(current);
-            } else {
-              const prev = group[group.length - 1];
-              const gap = (current.raw - prev.raw) / 3600000;
-              if (gap <= 6) {
-                group.push(current);
-              } else {
-                grouped.push(group);
-                group = [current];
-              }
-            }
-          }
-          if (group.length) grouped.push(group);
-
-          let prevEnd = Number(directHours.at(-1)?.hour || "00");
-
-          grouped.forEach(g => {
-            const start = prevEnd;
-            const end = Number(g[g.length - 1].hour);
-            prevEnd = end;
-
+          const buckets = {};
+          groupedHours.forEach(entry => {
+            const start = Math.floor(entry.hourInt / 6) * 6;
+            const end = start + 6;
             const label = `${String(start).padStart(2, "0")}–${String(end).padStart(2, "0")}`;
-            const avgTemp = Math.round(g.reduce((a, b) => a + b.temp, 0) / g.length);
-            const totalPrecip = g.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
-            const avgWind = Math.round(g.reduce((a, b) => a + b.wind, 0) / g.length);
-            const symbol = g[0].symbol;
+            if (!buckets[label]) buckets[label] = [];
+            buckets[label].push(entry);
+          });
+
+          Object.entries(buckets).forEach(([label, entries]) => {
+            const avgTemp = Math.round(entries.reduce((a, b) => a + b.temp, 0) / entries.length);
+            const totalPrecip = entries.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
+            const avgWind = Math.round(entries.reduce((a, b) => a + b.wind, 0) / entries.length);
+            const symbol = entries[0].symbol;
             hourly.push(`
               <div class="hour">
                 <img src="https://api.met.no/images/weathericons/svg/${symbol}.svg" alt="${symbol}">
