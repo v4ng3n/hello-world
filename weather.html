@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #f4f4f4;
+    }
+    nav {
+      background: #333;
+      padding: 1em;
+      color: white;
+      display: flex;
+      gap: 1em;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    main {
+      padding: 2em;
+    }
+    .day {
+      margin-bottom: 1.5em;
+      background: #fff;
+      padding: 1em;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .time-block {
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      margin: 0.5em 0;
+    }
+    .time-block img {
+      width: 30px;
+      height: 30px;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="weather.html">Weather</a>
+  </nav>
+  <main>
+    <h1>Weather forecast for Bergen</h1>
+    <div id="forecast">Loading...</div>
+  </main>
+
+  <script>
+    async function fetchWeather() {
+      const url = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=60.3913&lon=5.3221';
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'v4ng3n.org weather page'
+          }
+        });
+        const data = await response.json();
+        const timeseries = data.properties.timeseries;
+
+        const forecastByDay = {};
+
+        for (const entry of timeseries) {
+          const dt = new Date(entry.time);
+          const hour = dt.getHours();
+          if (![6, 12, 18].includes(hour)) continue;
+
+          const day = dt.toISOString().split('T')[0];
+          if (!forecastByDay[day]) forecastByDay[day] = [];
+
+          const temp = entry.data.instant.details.air_temperature;
+          const precipitation = entry.data.next_6_hours?.details?.precipitation_amount ?? 0;
+          const symbol = entry.data.next_6_hours?.summary?.symbol_code ?? "clearsky_day";
+
+          forecastByDay[day].push({
+            time: hour,
+            temp: Math.round(temp),
+            precipitation,
+            symbol
+          });
+        }
+
+        const days = Object.entries(forecastByDay).slice(0, 3);
+        const html = days.map(([day, blocks]) => {
+          const rows = blocks.map(block => `
+            <div class="time-block">
+              <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
+              <div>
+                <strong>${block.time}:00</strong> – ${block.temp}°C, ${block.precipitation} mm
+              </div>
+            </div>
+          `).join("");
+          return `<div class="day"><strong>${day}</strong>${rows}</div>`;
+        }).join("");
+
+        document.getElementById("forecast").innerHTML = html;
+
+      } catch (err) {
+        document.getElementById("forecast").innerText = "Could not load weather.";
+        console.error(err);
+      }
+    }
+
+    fetchWeather();
+  </script>
+</body>
+</html>
