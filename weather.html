@@ -134,14 +134,14 @@
 
         for (const entry of timeseries) {
           const dt = new Date(entry.time);
-          const localDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000); // convert to local
+          const localDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000);
 
           const dayKey = localDt.getFullYear() + "-" +
                          String(localDt.getMonth() + 1).padStart(2, "0") + "-" +
                          String(localDt.getDate()).padStart(2, "0");
 
           const hour = localDt.getHours();
-          const hourStr = String(hour).padStart(2, "0") + ":00";
+          const hourStr = String(hour).padStart(2, "0");
 
           const temp = Math.round(entry.data.instant.details.air_temperature);
           const wind = Math.round(entry.data.instant.details.wind_speed ?? 0);
@@ -164,7 +164,8 @@
 
           byDay[dayKey].hours.push({
             hour: hourStr,
-            temp, wind, precipitation, symbol
+            temp, wind, precipitation, symbol,
+            raw: localDt.getTime()
           });
         }
 
@@ -185,19 +186,74 @@
             </div>
           `).join("");
 
-          const hourly = content.hours.map(block => `
-            <div class="hour">
-              <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
-              <div><strong>${block.hour}</strong> – ${block.temp}°C, ${block.precipitation} mm, ${block.wind} m/s</div>
-            </div>
-          `).join("");
+          // Group hourly into real hours vs later chunks
+          const hourly = [];
+          const delayed = [];
+          const sorted = content.hours.sort((a, b) => a.raw - b.raw);
+
+          let last = sorted[0];
+          for (let j = 1; j < sorted.length; j++) {
+            const gap = (sorted[j].raw - last.raw) / 3600000;
+            if (gap > 1.5) break;
+            last = sorted[j];
+          }
+
+          const hourlyCutoff = last.raw;
+
+          const directHours = sorted.filter(h => h.raw <= hourlyCutoff);
+          const groupedHours = sorted.filter(h => h.raw > hourlyCutoff);
+
+          directHours.forEach(block => {
+            hourly.push(`
+              <div class="hour">
+                <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
+                <div><strong>${block.hour}</strong> – ${block.temp}°C, ${block.precipitation} mm, ${block.wind} m/s</div>
+              </div>
+            `);
+          });
+
+          // Group delayed entries into ranges
+          const grouped = [];
+          let group = [];
+          for (let i = 0; i < groupedHours.length; i++) {
+            const current = groupedHours[i];
+            if (group.length === 0) {
+              group.push(current);
+            } else {
+              const last = group[group.length - 1];
+              const gap = (current.raw - last.raw) / 3600000;
+              if (gap <= 6) {
+                group.push(current);
+              } else {
+                grouped.push(group);
+                group = [current];
+              }
+            }
+          }
+          if (group.length) grouped.push(group);
+
+          grouped.forEach(g => {
+            const start = g[0].hour;
+            const end = g[g.length - 1].hour;
+            const label = `${start}–${end}`;
+            const avgTemp = Math.round(g.reduce((a, b) => a + b.temp, 0) / g.length);
+            const totalPrecip = g.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
+            const avgWind = Math.round(g.reduce((a, b) => a + b.wind, 0) / g.length);
+            const symbol = g[0].symbol;
+            hourly.push(`
+              <div class="hour">
+                <img src="https://api.met.no/images/weathericons/svg/${symbol}.svg" alt="${symbol}">
+                <div><strong>${label}</strong> – ${avgTemp}°C, ${totalPrecip} mm, ${avgWind} m/s</div>
+              </div>
+            `);
+          });
 
           return `
             <div class="day">
               <strong>${header}</strong>
               ${intervals}
               <button class="toggle-btn" onclick="toggleDetails(this)">Detailed view</button>
-              <div class="hourly-details">${hourly}</div>
+              <div class="hourly-details">${hourly.join("")}</div>
             </div>`;
         }).join("");
 
@@ -216,7 +272,6 @@
       button.textContent = expanded ? "Detailed view" : "Hide details";
     }
 
-    // Initial load
     fetchWeather(selectEl.value);
   </script>
 </body>
