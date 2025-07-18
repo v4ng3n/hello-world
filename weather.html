@@ -103,9 +103,8 @@
     const intervalLabels = ["00–06", "06–12", "12–18", "18–24"];
     const intervalHours = [[0,6],[6,12],[12,18],[18,24]];
 
-    function formatDate(dateStr) {
-      const [year, month, day] = dateStr.split("-");
-      return `${day}-${month}-${year}`;
+    function formatDate(date) {
+      return `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
     }
 
     function getDayLabel(offset) {
@@ -114,10 +113,9 @@
       return "Day after tomorrow";
     }
 
-    function getWeekday(dateStr) {
+    function getWeekday(date) {
       const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      const d = new Date(dateStr);
-      return days[d.getDay()];
+      return days[date.getDay()];
     }
 
     async function fetchWeather(locationKey) {
@@ -136,40 +134,47 @@
 
         for (const entry of timeseries) {
           const dt = new Date(entry.time);
+          const localDay = new Date(dt.getTime() + dt.getTimezoneOffset() * 60000);
+          const dayKey = localDay.getFullYear() + "-" +
+                         String(localDay.getMonth() + 1).padStart(2, "0") + "-" +
+                         String(localDay.getDate()).padStart(2, "0");
+
           const hour = dt.getHours();
-          const day = dt.toISOString().split("T")[0];
-          const timeStr = dt.toISOString().split("T")[1].slice(0,5);
+          const hourStr = String(hour).padStart(2, "0") + ":00";
 
           const temp = Math.round(entry.data.instant.details.air_temperature);
           const wind = Math.round(entry.data.instant.details.wind_speed ?? 0);
-          const precipitation = entry.data.next_6_hours?.details?.precipitation_amount ?? null;
-          const symbol = entry.data.next_6_hours?.summary?.symbol_code ?? null;
+          const precipitation = entry.data.next_1_hours?.details?.precipitation_amount ?? 0;
+          const symbol = entry.data.next_1_hours?.summary?.symbol_code ?? "clearsky_day";
 
-          if (!byDay[day]) byDay[day] = { intervals: {}, hours: [] };
+          if (!byDay[dayKey]) byDay[dayKey] = { intervals: {}, hours: [] };
 
-          // group by intervals
+          // 6-hour block (if available)
           intervalHours.forEach((range, i) => {
             if (hour >= range[0] && hour < range[1]) {
-              if (!byDay[day].intervals[intervalLabels[i]] && symbol !== null) {
-                byDay[day].intervals[intervalLabels[i]] = {
-                  temp, wind, precipitation, symbol
+              if (!byDay[dayKey].intervals[intervalLabels[i]] && entry.data.next_6_hours?.summary) {
+                const intSymbol = entry.data.next_6_hours.summary.symbol_code;
+                const intPrecip = entry.data.next_6_hours.details.precipitation_amount ?? 0;
+                byDay[dayKey].intervals[intervalLabels[i]] = {
+                  temp, wind, precipitation: intPrecip, symbol: intSymbol
                 };
               }
             }
           });
 
-          // store hourly
-          byDay[day].hours.push({
-            hour: dt.getHours().toString().padStart(2, "0") + ":00",
-            temp, wind
+          // Hourly block
+          byDay[dayKey].hours.push({
+            hour: hourStr,
+            temp, wind, precipitation, symbol
           });
         }
 
-        const days = Object.entries(byDay).slice(0, 3);
-        const html = days.map(([date, content], i) => {
+        const dayEntries = Object.entries(byDay).slice(0, 3);
+        const html = dayEntries.map(([dateStr, content], i) => {
+          const date = new Date(dateStr + "T00:00:00");
           const weekday = getWeekday(date);
           const label = getDayLabel(i);
-          const dateStr = `${weekday} – ${label} (${formatDate(date)})`;
+          const header = `${weekday} – ${label} (${formatDate(date)})`;
 
           const intervals = Object.entries(content.intervals).map(([interval, info]) => `
             <div class="interval">
@@ -180,13 +185,16 @@
             </div>
           `).join("");
 
-          const hourly = content.hours.map(h => `
-            <div class="hour"><span><strong>${h.hour}</strong> – ${h.temp}°C, ${h.wind} m/s</span></div>
+          const hourly = content.hours.map(block => `
+            <div class="hour">
+              <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
+              <div><strong>${block.hour}</strong> – ${block.temp}°C, ${block.precipitation} mm, ${block.wind} m/s</div>
+            </div>
           `).join("");
 
           return `
             <div class="day">
-              <strong>${dateStr}</strong>
+              <strong>${header}</strong>
               ${intervals}
               <button class="toggle-btn" onclick="toggleDetails(this)">Detailed view</button>
               <div class="hourly-details">${hourly}</div>
