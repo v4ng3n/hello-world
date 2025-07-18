@@ -75,8 +75,8 @@
     const locations = {
       bergen: { name: "Bergen", lat: 60.3913, lon: 5.3221 },
       aalborg: { name: "Aalborg", lat: 57.0488, lon: 9.9217 },
-      hormested: { name: "Hørmested", lat: 57.528, lon: 10.139 },  // approximate
-      vojens: { name: "Vojens", lat: 55.250, lon: 9.300 }          // approximate
+      hormested: { name: "Hørmested", lat: 57.528, lon: 10.139 },
+      vojens: { name: "Vojens", lat: 55.250, lon: 9.300 }
     };
 
     const forecastEl = document.getElementById("forecast");
@@ -85,6 +85,17 @@
     selectEl.addEventListener("change", () => {
       fetchWeather(selectEl.value);
     });
+
+    function formatDate(dateStr) {
+      const [year, month, day] = dateStr.split("-");
+      return `${day}-${month}-${year}`;
+    }
+
+    function getDayLabel(offset) {
+      if (offset === 0) return "Today";
+      if (offset === 1) return "Tomorrow";
+      return "Day after tomorrow";
+    }
 
     async function fetchWeather(locationKey) {
       const loc = locations[locationKey];
@@ -99,6 +110,7 @@
         const timeseries = data.properties.timeseries;
 
         const forecastByDay = {};
+
         for (const entry of timeseries) {
           const dt = new Date(entry.time);
           const hour = dt.getHours();
@@ -108,6 +120,7 @@
           if (!forecastByDay[day]) forecastByDay[day] = [];
 
           const temp = entry.data.instant.details.air_temperature;
+          const wind = entry.data.instant.details.wind_speed ?? 0;
           const precipitation = entry.data.next_6_hours?.details?.precipitation_amount ?? 0;
           const symbol = entry.data.next_6_hours?.summary?.symbol_code ?? "clearsky_day";
 
@@ -115,21 +128,24 @@
             time: hour,
             temp: Math.round(temp),
             precipitation,
+            wind: Math.round(wind),
             symbol
           });
         }
 
-        const days = Object.entries(forecastByDay).slice(0, 3);
-        const html = days.map(([day, blocks]) => {
-          const rows = blocks.map(block => `
+        const today = new Date().toISOString().split('T')[0];
+        const dayKeys = Object.keys(forecastByDay);
+        const html = dayKeys.slice(0, 3).map((dayStr, i) => {
+          const label = getDayLabel(i);
+          const blocks = forecastByDay[dayStr].map(block => `
             <div class="time-block">
               <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
               <div>
-                <strong>${block.time}:00</strong> – ${block.temp}°C, ${block.precipitation} mm
+                <strong>${block.time}:00</strong> – ${block.temp}°C, ${block.precipitation} mm, ${block.wind} m/s
               </div>
             </div>
           `).join("");
-          return `<div class="day"><strong>${day}</strong>${rows}</div>`;
+          return `<div class="day"><strong>${label} (${formatDate(dayStr)})</strong>${blocks}</div>`;
         }).join("");
 
         forecastEl.innerHTML = html;
