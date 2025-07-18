@@ -89,9 +89,6 @@
       vojens: { name: "Vojens", lat: 55.25, lon: 9.3 }
     };
 
-    const intervalLabels = ["00–06", "06–12", "12–18", "18–24"];
-    const intervalHours = [[0,6],[6,12],[12,18],[18,24]];
-
     const forecastEl = document.getElementById("forecast");
     const selectEl = document.getElementById("location");
 
@@ -132,10 +129,7 @@
           const dt = new Date(entry.time);
           const localDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000);
 
-          const dayKey = localDt.getFullYear() + "-" +
-                         String(localDt.getMonth() + 1).padStart(2, "0") + "-" +
-                         String(localDt.getDate()).padStart(2, "0");
-
+          const dayKey = localDt.toISOString().slice(0, 10);
           const hour = localDt.getHours();
           const hourStr = String(hour).padStart(2, "0");
 
@@ -144,101 +138,74 @@
           const precipitation = entry.data.next_1_hours?.details?.precipitation_amount ?? 0;
           const symbol = entry.data.next_1_hours?.summary?.symbol_code ?? "clearsky_day";
 
-          if (!byDay[dayKey]) byDay[dayKey] = { intervals: {}, hours: [] };
-
-          intervalHours.forEach((range, i) => {
-            if (hour >= range[0] && hour < range[1]) {
-              if (!byDay[dayKey].intervals[intervalLabels[i]] && entry.data.next_6_hours?.summary) {
-                const intSymbol = entry.data.next_6_hours.summary.symbol_code;
-                const intPrecip = entry.data.next_6_hours.details.precipitation_amount ?? 0;
-                byDay[dayKey].intervals[intervalLabels[i]] = {
-                  temp, wind, precipitation: intPrecip, symbol: intSymbol
-                };
-              }
-            }
-          });
-
-          byDay[dayKey].hours.push({
-            hour: hourStr,
-            temp, wind, precipitation, symbol,
-            raw: localDt.getTime(),
-            hourInt: hour
+          if (!byDay[dayKey]) byDay[dayKey] = { raw: localDt, entries: [] };
+          byDay[dayKey].entries.push({
+            hourInt: hour,
+            hourStr,
+            raw: localDt,
+            temp, wind, precipitation, symbol
           });
         }
 
-        const dayEntries = Object.entries(byDay).slice(0, 3);
-        const html = dayEntries.map(([dateStr, content], i) => {
-          const [y, m, d] = dateStr.split("-");
-          const date = new Date(Number(y), Number(m) - 1, Number(d));
+        const days = Object.entries(byDay).slice(0, 3);
+        const html = days.map(([dateKey, data], i) => {
+          const date = new Date(data.raw);
           const weekday = getWeekday(date);
           const label = getDayLabel(i);
           const header = `${weekday} – ${label} (${formatDate(date)})`;
 
-          const intervals = Object.entries(content.intervals).map(([interval, info]) => `
-            <div class="interval">
-              <img src="https://api.met.no/images/weathericons/svg/${info.symbol}.svg" alt="${info.symbol}">
-              <div>
-                <strong>${interval}</strong> – ${info.temp}°C, ${info.precipitation} mm, ${info.wind} m/s
-              </div>
+          const sorted = data.entries.sort((a, b) => a.raw - b.raw);
+
+          // Split between hourly and interval forecast
+          let cutoffIndex = sorted.findIndex((e, idx, arr) => {
+            return idx > 0 && (e.raw - arr[idx - 1].raw) / 60000 > 90;
+          });
+          if (cutoffIndex === -1) cutoffIndex = sorted.length;
+
+          const hourly = sorted.slice(0, cutoffIndex);
+          const grouped = sorted.slice(cutoffIndex);
+
+          const hourHtml = hourly.map(e => `
+            <div class="hour">
+              <img src="https://api.met.no/images/weathericons/svg/${e.symbol}.svg" alt="${e.symbol}">
+              <div><strong>${e.hourStr}</strong> – ${e.temp}°C, ${e.precipitation} mm, ${e.wind} m/s</div>
             </div>
           `).join("");
 
-          const hourly = [];
-          const sorted = content.hours.sort((a, b) => a.raw - b.raw);
-
-          let last = sorted[0];
-          for (let j = 1; j < sorted.length; j++) {
-            const gap = (sorted[j].raw - last.raw) / 3600000;
-            if (gap > 1.5) break;
-            last = sorted[j];
-          }
-
-          const hourlyCutoff = last.raw;
-          const directHours = sorted.filter(h => h.raw <= hourlyCutoff);
-          const groupedHours = sorted.filter(h => h.raw > hourlyCutoff);
-
-          directHours.forEach(block => {
-            hourly.push(`
-              <div class="hour">
-                <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
-                <div><strong>${block.hour}</strong> – ${block.temp}°C, ${block.precipitation} mm, ${block.wind} m/s</div>
-              </div>
-            `);
-          });
-
-          const buckets = {};
-          groupedHours.forEach(entry => {
-            const start = Math.floor(entry.hourInt / 6) * 6;
+          // Bucket grouped data into 6-hour intervals
+          const bucketed = {};
+          grouped.forEach(e => {
+            const start = Math.floor(e.hourInt / 6) * 6;
             const end = start + 6;
-            const label = `${String(start).padStart(2, "0")}–${String(end).padStart(2, "0")}`;
-            if (!buckets[label]) buckets[label] = [];
-            buckets[label].push(entry);
+            const label = `${String(start).padStart(2, "0")}–${String(end % 24).padStart(2, "0")}`;
+            if (!bucketed[label]) bucketed[label] = [];
+            bucketed[label].push(e);
           });
 
-          Object.entries(buckets).forEach(([label, entries]) => {
+          const intervalHtml = Object.entries(bucketed).map(([label, entries]) => {
             const avgTemp = Math.round(entries.reduce((a, b) => a + b.temp, 0) / entries.length);
-            const totalPrecip = entries.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
             const avgWind = Math.round(entries.reduce((a, b) => a + b.wind, 0) / entries.length);
-            const symbol = entries[0].symbol;
-            hourly.push(`
-              <div class="hour">
-                <img src="https://api.met.no/images/weathericons/svg/${symbol}.svg" alt="${symbol}">
+            const totalPrecip = entries.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
+            const icon = entries[0].symbol;
+            return `
+              <div class="interval">
+                <img src="https://api.met.no/images/weathericons/svg/${icon}.svg" alt="${icon}">
                 <div><strong>${label}</strong> – ${avgTemp}°C, ${totalPrecip} mm, ${avgWind} m/s</div>
               </div>
-            `);
-          });
+            `;
+          }).join("");
 
           return `
             <div class="day">
               <strong>${header}</strong>
-              ${intervals}
+              ${intervalHtml}
               <button class="toggle-btn" onclick="toggleDetails(this)">Detailed view</button>
-              <div class="hourly-details">${hourly.join("")}</div>
-            </div>`;
+              <div class="hourly-details">${hourHtml}</div>
+            </div>
+          `;
         }).join("");
 
         forecastEl.innerHTML = html;
-
       } catch (err) {
         forecastEl.innerText = "Could not load weather.";
         console.error(err);
