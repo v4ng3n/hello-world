@@ -3,18 +3,81 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Hello World</title>
+  <title>Hello World with Weather</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      background: #f4f4f4;
+    }
+    h1 {
+      margin-bottom: 0;
+    }
+    #weather {
+      margin-top: 2em;
+    }
+    .day {
+      margin-bottom: 1em;
+    }
+  </style>
 </head>
 <body>
   <h1>Hello, world!</h1>
   <p>The current time is: <span id="time"></span></p>
 
+  <div id="weather">
+    <h2>Weather forecast for Bergen</h2>
+    <div id="forecast">Loading...</div>
+  </div>
+
   <script>
+    // Clock
     function updateTime() {
-      document.getElementById("time").textContent = new Date().toLocaleTimeString([], { hour12: false });
+      document.getElementById("time").textContent = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
     }
     updateTime();
     setInterval(updateTime, 1000);
+
+    // Weather forecast from YR
+    async function fetchWeather() {
+      const url = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=60.3913&lon=5.3221'; // Bergen
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'v4ng3n.org weather page'
+          }
+        });
+        const data = await response.json();
+        const timeseries = data.properties.timeseries;
+
+        const daily = {};
+        for (const entry of timeseries) {
+          const dt = new Date(entry.time);
+          const day = dt.toISOString().split('T')[0]; // YYYY-MM-DD
+          if (!daily[day]) {
+            const temp = entry.data.instant.details.air_temperature;
+            daily[day] = Math.round(temp);
+          }
+        }
+
+        const forecast = Object.entries(daily).slice(0, 3);
+        const html = forecast.map(([day, temp]) =>
+          `<div class="day"><strong>${day}</strong>: ${temp}°C</div>`
+        ).join("");
+
+        document.getElementById("forecast").innerHTML = html;
+      } catch (err) {
+        document.getElementById("forecast").innerText = "Could not load weather.";
+        console.error(err);
+      }
+    }
+
+    fetchWeather();
   </script>
 </body>
 </html>
