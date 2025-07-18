@@ -97,6 +97,12 @@
       return "Day after tomorrow";
     }
 
+    function getWeekday(dateStr) {
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const d = new Date(dateStr);
+      return days[d.getDay()];
+    }
+
     async function fetchWeather(locationKey) {
       const loc = locations[locationKey];
       forecastEl.innerHTML = "Loading forecast for " + loc.name + "...";
@@ -120,32 +126,34 @@
           if (!forecastByDay[day]) forecastByDay[day] = [];
 
           const temp = entry.data.instant.details.air_temperature;
+          const feelsLike = entry.data.instant.details.air_temperature_feel ?? temp;
           const wind = entry.data.instant.details.wind_speed ?? 0;
           const precipitation = entry.data.next_6_hours?.details?.precipitation_amount ?? 0;
           const symbol = entry.data.next_6_hours?.summary?.symbol_code ?? "clearsky_day";
 
           forecastByDay[day].push({
-            time: hour,
+            time: hour.toString().padStart(2, "0") + ":00",
             temp: Math.round(temp),
+            feelsLike: Math.round(feelsLike),
             precipitation,
             wind: Math.round(wind),
             symbol
           });
         }
 
-        const today = new Date().toISOString().split('T')[0];
-        const dayKeys = Object.keys(forecastByDay);
-        const html = dayKeys.slice(0, 3).map((dayStr, i) => {
+        const dayKeys = Object.keys(forecastByDay).slice(0, 3);
+        const html = dayKeys.map((dayStr, i) => {
+          const weekday = getWeekday(dayStr);
           const label = getDayLabel(i);
           const blocks = forecastByDay[dayStr].map(block => `
             <div class="time-block">
               <img src="https://api.met.no/images/weathericons/svg/${block.symbol}.svg" alt="${block.symbol}">
               <div>
-                <strong>${block.time}:00</strong> – ${block.temp}°C, ${block.precipitation} mm, ${block.wind} m/s
+                <strong>${block.time}</strong> – ${block.temp}°C (${block.feelsLike}°C), ${block.precipitation} mm, ${block.wind} m/s
               </div>
             </div>
           `).join("");
-          return `<div class="day"><strong>${label} (${formatDate(dayStr)})</strong>${blocks}</div>`;
+          return `<div class="day"><strong>${weekday} – ${label} (${formatDate(dayStr)})</strong>${blocks}</div>`;
         }).join("");
 
         forecastEl.innerHTML = html;
