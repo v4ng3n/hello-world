@@ -45,6 +45,12 @@
       width: 30px;
       height: 30px;
     }
+    select {
+      font-size: 1em;
+      padding: 0.4em;
+      margin-top: 0.5em;
+      margin-bottom: 1em;
+    }
   </style>
 </head>
 <body>
@@ -53,24 +59,46 @@
     <a href="weather.html">Weather</a>
   </nav>
   <main>
-    <h1>Weather forecast for Bergen</h1>
+    <h1>Weather Forecast</h1>
+    <label for="location">Select location:</label>
+    <select id="location">
+      <option value="bergen">Bergen</option>
+      <option value="aalborg">Aalborg</option>
+      <option value="hormested">Hørmested</option>
+      <option value="vojens">Vojens</option>
+    </select>
+
     <div id="forecast">Loading...</div>
   </main>
 
   <script>
-    async function fetchWeather() {
-      const url = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=60.3913&lon=5.3221';
+    const locations = {
+      bergen: { name: "Bergen", lat: 60.3913, lon: 5.3221 },
+      aalborg: { name: "Aalborg", lat: 57.0488, lon: 9.9217 },
+      hormested: { name: "Hørmested", lat: 57.528, lon: 10.139 },  // approximate
+      vojens: { name: "Vojens", lat: 55.250, lon: 9.300 }          // approximate
+    };
+
+    const forecastEl = document.getElementById("forecast");
+    const selectEl = document.getElementById("location");
+
+    selectEl.addEventListener("change", () => {
+      fetchWeather(selectEl.value);
+    });
+
+    async function fetchWeather(locationKey) {
+      const loc = locations[locationKey];
+      forecastEl.innerHTML = "Loading forecast for " + loc.name + "...";
+
+      const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${loc.lat}&lon=${loc.lon}`;
       try {
         const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'v4ng3n.org weather page'
-          }
+          headers: { 'User-Agent': 'v4ng3n.org weather page' }
         });
         const data = await response.json();
         const timeseries = data.properties.timeseries;
 
         const forecastByDay = {};
-
         for (const entry of timeseries) {
           const dt = new Date(entry.time);
           const hour = dt.getHours();
@@ -104,15 +132,16 @@
           return `<div class="day"><strong>${day}</strong>${rows}</div>`;
         }).join("");
 
-        document.getElementById("forecast").innerHTML = html;
+        forecastEl.innerHTML = html;
 
       } catch (err) {
-        document.getElementById("forecast").innerText = "Could not load weather.";
+        forecastEl.innerText = "Could not load weather.";
         console.error(err);
       }
     }
 
-    fetchWeather();
+    // Initial load
+    fetchWeather(selectEl.value);
   </script>
 </body>
 </html>
