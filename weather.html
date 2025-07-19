@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather bForecast</title>
+  <style>
+    body { font-family: sans-serif; background: #f5f5f5; margin: 0; }
+    nav { background: #333; padding: 1em; }
+    nav a { color: white; margin-right: 1em; text-decoration: none; font-weight: bold; }
+    main { padding: 2em; max-width: 800px; margin: auto; }
+    select { font-size: 1em; margin-bottom: 1em; padding: 0.3em; }
+    .day { background: white; border-radius: 8px; padding: 1em; margin-bottom: 1.5em; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .hour, .interval { display: flex; align-items: center; gap: 1em; margin: 0.4em 0; }
+    .hour img, .interval img { width: 28px; height: 28px; }
+    .toggle-btn { margin-top: 1em; font-size: 0.9em; color: #007BFF; cursor: pointer; background: none; border: none; padding: 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="#">Home</a>
+    <a href="#">Weather</a>
+  </nav>
+  <main>
+    <h1>Weather Forecast</h1>
+    <label for="location">Select location:</label>
+    <select id="location">
+      <option value="bergen">Bergen</option>
+      <option value="aalborg">Aalborg</option>
+      <option value="hormested">Hørmested</option>
+      <option value="vojens">Vojens</option>
+    </select>
+    <div id="forecast">Loading...</div>
+  </main>
+  <script>
+    const locations = {
+      bergen: { lat: 60.3913, lon: 5.3221, timezone: 'Europe/Oslo' },
+      aalborg: { lat: 57.0488, lon: 9.9217, timezone: 'Europe/Copenhagen' },
+      hormested: { lat: 57.4833, lon: 10.2, timezone: 'Europe/Copenhagen' },
+      vojens: { lat: 55.25, lon: 9.3, timezone: 'Europe/Copenhagen' }
+    };
+
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    async function fetchForecast(lat, lon) {
+      const res = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`, {
+        headers: { "User-Agent": "weather.v4ng3n.org" }
+      });
+      const data = await res.json();
+      return data.properties.timeseries;
+    }
+
+    function getLocalDateTime(dateStr, tz) {
+      const utc = new Date(dateStr);
+      return new Date(utc.toLocaleString('en-US', { timeZone: tz }));
+    }
+
+    function formatHour(date) {
+      return String(date.getHours()).padStart(2, '0');
+    }
+
+    function formatDate(date) {
+      return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth()+1).padStart(2, '0')}-${date.getFullYear()}`;
+    }
+
+    async function updateForecast() {
+      const loc = document.getElementById('location').value;
+      const { lat, lon, timezone } = locations[loc];
+      const rawData = await fetchForecast(lat, lon);
+      const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
+
+      const grouped = {};
+      rawData.forEach(entry => {
+        const local = getLocalDateTime(entry.time, timezone);
+        if (local < localNow) return;
+        const dateKey = local.toISOString().split('T')[0];
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        grouped[dateKey].push({
+          date: local,
+          temp: Math.round(entry.data.instant.details.air_temperature),
+          wind: Math.round(entry.data.instant.details.wind_speed || 0),
+          rain: entry.data.next_1_hours?.details?.precipitation_amount || 0,
+          symbol: entry.data.next_1_hours?.summary?.symbol_code || 'clearsky_day'
+        });
+      });
+
+      const sortedDays = Object.entries(grouped)
+        .sort(([a], [b]) => new Date(a) - new Date(b))
+        .slice(0, 3)
+        .map(([key, value]) => {
+          const dayStart = getLocalDateTime(`${key}T00:00:00`, timezone);
+          const entries = value.filter(e => e.date >= dayStart && e.date < new Date(dayStart.getTime() + 86400000));
+          return { dateKey: key, dateObj: dayStart, entries };
+        });
+
+      const forecastDiv = document.getElementById('forecast');
+      forecastDiv.innerHTML = '';
+
+      sortedDays.forEach(({ dateKey, dateObj, entries }) => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day';
+
+        const weekday = weekdays[dateObj.getDay()];
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        let label = weekday;
+        if (dateObj.getTime() === today.getTime()) label += ' – Today';
+        else if (dateObj.getTime() === today.getTime() + 86400000) label += ' – Tomorrow';
+        else if (dateObj.getTime() === today.getTime() + 2 * 86400000) label += ' – Day after tomorrow';
+        label += ` (${formatDate(dateObj)})`;
+
+        const header = document.createElement('h3');
+        header.textContent = label;
+        dayDiv.appendChild(header);
+
+        const content = document.createElement('div');
+        content.className = 'content';
+
+        const button = document.createElement('button');
+        button.className = 'toggle-btn';
+        button.textContent = 'Detailed view';
+
+        let detailed = false;
+
+        const render = () => {
+          content.innerHTML = '';
+          if (detailed) {
+            entries.forEach(entry => {
+              const div = document.createElement('div');
+              div.className = 'hour';
+              const icon = `https://api.met.no/images/weathericons/svg/${entry.symbol}.svg`;
+              div.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(entry.date)}</strong> – ${entry.temp} °C, ${entry.rain} mm, ${entry.wind} m/s`;
+              content.appendChild(div);
+            });
+          } else {
+            for (let start = 0; start < 24; start += 6) {
+              const block = entries.filter(e => {
+                const h = e.date.getHours();
+                return h >= start && h < start + 6;
+              });
+              if (!block.length) continue;
+              const icon = `https://api.met.no/images/weathericons/svg/${block[0].symbol}.svg`;
+              const avg = block.reduce((acc, e) => {
+                acc.temp += e.temp;
+                acc.rain += e.rain;
+                acc.wind += e.wind;
+                return acc;
+              }, { temp: 0, rain: 0, wind: 0 });
+              const div = document.createElement('div');
+              div.className = 'interval';
+              div.innerHTML = `<img src="${icon}" alt=""> <strong>${String(start).padStart(2, '0')}–${String(start+6 === 24 ? 0 : start+6).padStart(2, '0')}</strong> – ${Math.round(avg.temp/block.length)} °C, ${avg.rain.toFixed(1)} mm, ${Math.round(avg.wind/block.length)} m/s`;
+              content.appendChild(div);
+            }
+          }
+        };
+
+        button.onclick = () => {
+          detailed = !detailed;
+          button.textContent = detailed ? 'Hide details' : 'Detailed view';
+          render();
+        };
+
+        render();
+        dayDiv.appendChild(button);
+        dayDiv.appendChild(content);
+        forecastDiv.appendChild(dayDiv);
+      });
+    }
+
+    document.getElementById('location').addEventListener('change', updateForecast);
+    updateForecast();
+  </script>
+</body>
+</html>
