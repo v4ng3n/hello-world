@@ -1,224 +1,177 @@
 <!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Weather</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Forecast</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: system-ui, sans-serif;
       margin: 0;
-      background: #f4f4f4;
+      padding: 0;
+      background: #f9f9f9;
     }
     nav {
       background: #333;
-      padding: 1em;
-      color: white;
-      display: flex;
-      gap: 1em;
+      padding: 1rem;
     }
     nav a {
       color: white;
+      margin-right: 1rem;
       text-decoration: none;
       font-weight: bold;
     }
-    nav a:hover {
-      text-decoration: underline;
+    .container {
+      padding: 2rem;
     }
-    main {
-      padding: 2em;
-    }
-    .day {
-      margin-bottom: 2em;
-      background: #fff;
-      padding: 1em;
-      border-radius: 8px;
+    .forecast-day {
+      background: white;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      border-radius: 0.5rem;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    .interval, .hour {
+    .forecast-day h3 {
+      margin: 0 0 1rem 0;
+    }
+    .entry {
       display: flex;
       align-items: center;
-      gap: 1em;
-      margin: 0.4em 0;
+      margin-bottom: 0.5rem;
     }
-    .interval img, .hour img {
-      width: 30px;
-      height: 30px;
+    .entry img {
+      width: 24px;
+      height: 24px;
+      margin-right: 0.5rem;
+    }
+    .details-toggle {
+      color: #007bff;
+      cursor: pointer;
+      margin-top: 1rem;
+      display: inline-block;
     }
     select {
-      font-size: 1em;
-      padding: 0.4em;
-      margin-top: 0.5em;
-      margin-bottom: 1em;
-    }
-    .toggle-btn {
-      margin-top: 1em;
-      font-size: 0.9em;
-      color: #007BFF;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 0;
-    }
-    .hourly-details {
-      display: none;
-      margin-top: 0.5em;
-      padding-left: 1.5em;
+      font-size: 1rem;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
 <body>
   <nav>
-    <a href="index.html">Home</a>
-    <a href="weather.html">Weather</a>
+    <a href="/">Home</a>
+    <a href="/weather">Weather</a>
   </nav>
-  <main>
+  <div class="container">
     <h1>Weather Forecast</h1>
-    <label for="location">Select location:</label>
-    <select id="location">
-      <option value="bergen">Bergen</option>
-      <option value="aalborg">Aalborg</option>
-      <option value="hormested">Hørmested</option>
-      <option value="vojens">Vojens</option>
-    </select><div id="forecast">Loading...</div>
+    <label for="location-select">Select location:</label>
+    <select id="location-select"></select>
+    <div id="forecast"></div>
+  </div>
+  <script>
+    const locationSelect = document.getElementById('location-select');
+    const forecastContainer = document.getElementById('forecast');const locations = {
+  Bergen: 'https://www.yr.no/api/v0/locations/1-308-bergen/forecast',
+  Aalborg: 'https://www.yr.no/api/v0/locations/1-6081-aalborg/forecast',
+  Hørmested: 'https://www.yr.no/api/v0/locations/1-2622207-hormested/forecast',
+  Vojens: 'https://www.yr.no/api/v0/locations/1-2622442-vojens/forecast'
+};
 
-  </main>  <script>
-    const locations = {
-      bergen: { name: "Bergen", lat: 60.3913, lon: 5.3221 },
-      aalborg: { name: "Aalborg", lat: 57.0488, lon: 9.9217 },
-      hormested: { name: "Hørmested", lat: 57.528, lon: 10.139 },
-      vojens: { name: "Vojens", lat: 55.25, lon: 9.3 }
-    };
+Object.keys(locations).forEach(loc => {
+  const opt = document.createElement('option');
+  opt.value = loc;
+  opt.textContent = loc;
+  locationSelect.appendChild(opt);
+});
 
-    const forecastEl = document.getElementById("forecast");
-    const selectEl = document.getElementById("location");
+locationSelect.addEventListener('change', () => {
+  loadForecast(locationSelect.value);
+});
 
-    selectEl.addEventListener("change", () => {
-      fetchWeather(selectEl.value);
-    });
+function formatTime(hour) {
+  return String(hour).padStart(2, '0');
+}
 
-    function formatDate(date) {
-      return `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
-    }
+function loadForecast(loc) {
+  fetch(locations[loc])
+    .then(res => res.json())
+    .then(data => {
+      forecastContainer.innerHTML = '';
+      const grouped = {};
 
-    function getDayLabel(offset) {
-      if (offset === 0) return "Today";
-      if (offset === 1) return "Tomorrow";
-      return "Day after tomorrow";
-    }
-
-    function getWeekday(date) {
-      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      return days[date.getDay()];
-    }
-
-    async function fetchWeather(locationKey) {
-      const loc = locations[locationKey];
-      forecastEl.innerHTML = "Loading forecast for " + loc.name + "...";
-
-      const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${loc.lat}&lon=${loc.lon}`;
-      try {
-        const response = await fetch(url, {
-          headers: { 'User-Agent': 'v4ng3n.org weather page' }
+      data.shortIntervals.forEach(entry => {
+        const date = new Date(entry.start);
+        const day = date.toISOString().split('T')[0];
+        if (!grouped[day]) grouped[day] = [];
+        grouped[day].push({
+          hour: date.getHours(),
+          temp: entry.temperature.value,
+          wind: entry.wind.speed,
+          rain: entry.precipitation.value,
+          icon: entry.symbolCode
         });
-        const data = await response.json();
-        const timeseries = data.properties.timeseries;
+      });
 
-        const byDay = {};
+      Object.keys(grouped).slice(0, 3).forEach((day, idx) => {
+        const entries = grouped[day];
+        const dateObj = new Date(day);
+        const weekday = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
+        const label = idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : 'Day after tomorrow';
 
-        for (const entry of timeseries) {
-          const dt = new Date(entry.time);
-          const localDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000);
+        const card = document.createElement('div');
+        card.className = 'forecast-day';
 
-          const dayKey = localDt.toISOString().slice(0, 10);
-          const hour = localDt.getHours();
-          const hourStr = String(hour).padStart(2, "0");
+        const title = document.createElement('h3');
+        title.textContent = `${weekday} – ${label} (${day.split('-').reverse().join('-')})`;
+        card.appendChild(title);
 
-          const temp = Math.round(entry.data.instant.details.air_temperature);
-          const wind = Math.round(entry.data.instant.details.wind_speed ?? 0);
-          const precipitation = entry.data.next_1_hours?.details?.precipitation_amount ?? 0;
-          const symbol = entry.data.next_1_hours?.summary?.symbol_code ?? "clearsky_day";
+        const chunks = [
+          [0, 6], [6, 12], [12, 18], [18, 24]
+        ];
 
-          if (!byDay[dayKey]) byDay[dayKey] = { raw: localDt, entries: [] };
-          byDay[dayKey].entries.push({
-            hourInt: hour,
-            hourStr,
-            raw: localDt,
-            temp, wind, precipitation, symbol
-          });
-        }
+        chunks.forEach(([start, end]) => {
+          const chunkEntries = entries.filter(e => e.hour >= start && e.hour < end);
+          if (chunkEntries.length) {
+            const avg = arr => arr.reduce((a, b) => a + b) / arr.length;
+            const icon = chunkEntries[Math.floor(chunkEntries.length / 2)].icon;
+            const e = document.createElement('div');
+            e.className = 'entry';
+            e.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${icon}.svg" alt="" />
+              <strong>${formatTime(start)}–${formatTime(end)}</strong> –
+              ${Math.round(avg(chunkEntries.map(e => e.temp)))}°C,
+              ${avg(chunkEntries.map(e => e.rain)).toFixed(1)} mm,
+              ${Math.round(avg(chunkEntries.map(e => e.wind)))} m/s`;
+            card.appendChild(e);
+          }
+        });
 
-        const days = Object.entries(byDay).slice(0, 3);
-        const html = days.map(([dateKey, data], i) => {
-          const date = new Date(data.raw);
-          const weekday = getWeekday(date);
-          const label = getDayLabel(i);
-          const header = `${weekday} – ${label} (${formatDate(date)})`;
+        const toggle = document.createElement('div');
+        toggle.className = 'details-toggle';
+        toggle.textContent = 'Detailed view';
+        toggle.onclick = () => {
+          if (toggle.textContent === 'Detailed view') {
+            entries.forEach(e => {
+              const row = document.createElement('div');
+              row.className = 'entry';
+              row.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${e.icon}.svg" alt="" />
+                <strong>${formatTime(e.hour)}</strong> –
+                ${e.temp}°C, ${e.rain} mm, ${e.wind} m/s`;
+              card.appendChild(row);
+            });
+            toggle.textContent = 'Hide details';
+          } else {
+            loadForecast(loc);
+          }
+        };
 
-          const sorted = data.entries.sort((a, b) => a.raw - b.raw);
+        card.appendChild(toggle);
+        forecastContainer.appendChild(card);
+      });
+    });
+}
 
-          // Split between hourly and interval forecast
-          let cutoffIndex = sorted.findIndex((e, idx, arr) => {
-            return idx > 0 && (e.raw - arr[idx - 1].raw) / 60000 > 90;
-          });
-          if (cutoffIndex === -1) cutoffIndex = sorted.length;
+locationSelect.value = 'Bergen';
+loadForecast('Bergen');
 
-          const hourly = sorted.slice(0, cutoffIndex);
-          const grouped = sorted.slice(cutoffIndex);
-
-          const hourHtml = hourly.map(e => `
-            <div class="hour">
-              <img src="https://api.met.no/images/weathericons/svg/${e.symbol}.svg" alt="${e.symbol}">
-              <div><strong>${e.hourStr}</strong> – ${e.temp}°C, ${e.precipitation} mm, ${e.wind} m/s</div>
-            </div>
-          `).join("");
-
-          // Bucket grouped data into 6-hour intervals
-          const bucketed = {};
-          grouped.forEach(e => {
-            const start = Math.floor(e.hourInt / 6) * 6;
-            const end = start + 6;
-            const label = `${String(start).padStart(2, "0")}–${String(end % 24).padStart(2, "0")}`;
-            if (!bucketed[label]) bucketed[label] = [];
-            bucketed[label].push(e);
-          });
-
-          const intervalHtml = Object.entries(bucketed).map(([label, entries]) => {
-            const avgTemp = Math.round(entries.reduce((a, b) => a + b.temp, 0) / entries.length);
-            const avgWind = Math.round(entries.reduce((a, b) => a + b.wind, 0) / entries.length);
-            const totalPrecip = entries.reduce((a, b) => a + b.precipitation, 0).toFixed(1);
-            const icon = entries[0].symbol;
-            return `
-              <div class="interval">
-                <img src="https://api.met.no/images/weathericons/svg/${icon}.svg" alt="${icon}">
-                <div><strong>${label}</strong> – ${avgTemp}°C, ${totalPrecip} mm, ${avgWind} m/s</div>
-              </div>
-            `;
-          }).join("");
-
-          return `
-            <div class="day">
-              <strong>${header}</strong>
-              ${intervalHtml}
-              <button class="toggle-btn" onclick="toggleDetails(this)">Detailed view</button>
-              <div class="hourly-details">${hourHtml}</div>
-            </div>
-          `;
-        }).join("");
-
-        forecastEl.innerHTML = html;
-      } catch (err) {
-        forecastEl.innerText = "Could not load weather.";
-        console.error(err);
-      }
-    }
-
-    function toggleDetails(button) {
-      const details = button.nextElementSibling;
-      const expanded = details.style.display === "block";
-      details.style.display = expanded ? "none" : "block";
-      button.textContent = expanded ? "Detailed view" : "Hide details";
-    }
-
-    fetchWeather(selectEl.value);
-  </script></body>
+  </script>
+</body>
 </html>
