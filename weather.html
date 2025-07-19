@@ -50,20 +50,17 @@
       return data.properties.timeseries;
     }
 
+    function getLocalDateTime(dateStr, tz) {
+      const utc = new Date(dateStr);
+      return new Date(utc.toLocaleString('en-US', { timeZone: tz }));
+    }
+
     function formatHour(date) {
       return String(date.getHours()).padStart(2, '0');
     }
 
     function formatDate(date) {
       return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth()+1).padStart(2, '0')}-${date.getFullYear()}`;
-    }
-
-    function getLocalTime(utcDate, tzName) {
-      return new Date(new Intl.DateTimeFormat('en-GB', {
-        timeZone: tzName,
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-      }).format(utcDate).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2})/, '$3-$2-$1T$4:$5:00'));
     }
 
     function buildForecast(days) {
@@ -100,51 +97,46 @@
         const render = () => {
           content.innerHTML = '';
           if (detailed) {
-            const startHour = entries[0].date.getHours();
-            let lastHour = startHour - 1;
             for (let i = 0; i < entries.length; i++) {
-              const { date, temp, rain, wind, symbol } = entries[i];
-              const hour = date.getHours();
-              if (hour - lastHour > 1 && hour - lastHour < 23) {
-                const label = `${String(lastHour).padStart(2, '0')}–${String(hour).padStart(2, '0')}`;
-                const avg = entries.slice(i - 1, i + 1).reduce((acc, e) => {
-                  acc.temp += e.temp;
-                  acc.rain += e.rain;
-                  acc.wind += e.wind;
-                  return acc;
-                }, { temp: 0, rain: 0, wind: 0 });
+              const curr = entries[i];
+              const prev = entries[i - 1];
+              const gap = prev ? (curr.date - prev.date) / 3600000 : 1;
+
+              if (gap > 1 && gap < 12) {
+                const label = `${formatHour(prev.date)}–${formatHour(curr.date)}`;
+                const avgTemp = Math.round((prev.temp + curr.temp) / 2);
+                const avgRain = ((prev.rain + curr.rain) / 2).toFixed(1);
+                const avgWind = Math.round((prev.wind + curr.wind) / 2);
                 const div = document.createElement('div');
                 div.className = 'interval';
-                div.innerHTML = `<strong>${label}</strong> – ${Math.round(avg.temp/2)}°C, ${avg.rain.toFixed(1)} mm, ${Math.round(avg.wind/2)} m/s`;
+                div.innerHTML = `<strong>${label}</strong> – ${avgTemp} °C, ${avgRain} mm, ${avgWind} m/s`;
                 content.appendChild(div);
               }
+
               const div = document.createElement('div');
               div.className = 'hour';
-              const icon = `https://api.met.no/images/weathericons/svg/${symbol}.svg`;
-              div.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(date)}</strong> – ${temp}°C, ${rain} mm, ${wind} m/s`;
+              const icon = `https://api.met.no/images/weathericons/svg/${curr.symbol}.svg`;
+              div.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(curr.date)}</strong> – ${curr.temp} °C, ${curr.rain} mm, ${curr.wind} m/s`;
               content.appendChild(div);
-              lastHour = hour;
             }
           } else {
-            for (let blockStart = 0; blockStart < 24; blockStart += 6) {
-              const blockEnd = blockStart + 6;
+            for (let start = 0; start < 24; start += 6) {
               const block = entries.filter(e => {
                 const h = e.date.getHours();
-                return h >= blockStart && h < blockEnd;
+                return h >= start && h < start + 6;
               });
-              if (block.length) {
-                const avg = block.reduce((acc, e) => {
-                  acc.temp += e.temp;
-                  acc.rain += e.rain;
-                  acc.wind += e.wind;
-                  return acc;
-                }, { temp: 0, rain: 0, wind: 0 });
-                const icon = `https://api.met.no/images/weathericons/svg/${block[0].symbol}.svg`;
-                const div = document.createElement('div');
-                div.className = 'interval';
-                div.innerHTML = `<img src="${icon}" alt=""> <strong>${String(blockStart).padStart(2, '0')}–${String(blockEnd).padStart(2, '0')}</strong> – ${Math.round(avg.temp/block.length)}°C, ${avg.rain.toFixed(1)} mm, ${Math.round(avg.wind/block.length)} m/s`;
-                content.appendChild(div);
-              }
+              if (!block.length) continue;
+              const icon = `https://api.met.no/images/weathericons/svg/${block[0].symbol}.svg`;
+              const avg = block.reduce((acc, e) => {
+                acc.temp += e.temp;
+                acc.rain += e.rain;
+                acc.wind += e.wind;
+                return acc;
+              }, { temp: 0, rain: 0, wind: 0 });
+              const div = document.createElement('div');
+              div.className = 'interval';
+              div.innerHTML = `<img src="${icon}" alt=""> <strong>${String(start).padStart(2, '0')}–${String(start+6).padStart(2, '0')}</strong> – ${Math.round(avg.temp/block.length)} °C, ${avg.rain.toFixed(1)} mm, ${Math.round(avg.wind/block.length)} m/s`;
+              content.appendChild(div);
             }
           }
         };
@@ -166,12 +158,14 @@
       const loc = document.getElementById('location').value;
       const { lat, lon, tzName } = locations[loc];
       const rawData = await fetchForecast(lat, lon);
+      const now = new Date().toLocaleString('en-US', { timeZone: tzName });
+      const localNow = new Date(now);
 
       const grouped = {};
       rawData.forEach(entry => {
-        const utc = new Date(entry.time);
-        const local = getLocalTime(utc, tzName);
-        const dateKey = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
+        const local = getLocalDateTime(entry.time, tzName);
+        if (local < localNow) return;
+        const dateKey = local.toISOString().split('T')[0];
         if (!grouped[dateKey]) grouped[dateKey] = [];
         grouped[dateKey].push({
           date: local,
