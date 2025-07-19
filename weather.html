@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather eeForecast</title>
+  <title>Weather yForecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
   <style>
@@ -112,16 +112,16 @@
         const options = { timeZone: timezone, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
         const dateStr = new Intl.DateTimeFormat('en-GB', options).format(time);
         const hour = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, hour: '2-digit', hour12: false }).format(time);
-        const label = entry.data.next_1_hours ? hour : getIntervalLabel(time, timezone);
 
         if (!forecasts[dateStr]) forecasts[dateStr] = [];
         forecasts[dateStr].push({
-          hour: label,
+          rawHour: hour,
           time,
           temp: Math.round(entry.data.instant.details.air_temperature),
           wind: Math.round(entry.data.instant.details.wind_speed),
           rain: entry.data.next_1_hours ? entry.data.next_1_hours.details.precipitation_amount.toFixed(1) : '0.0',
-          icon: (entry.data.next_1_hours || entry.data.next_6_hours || {}).summary?.symbol_code || 'clearsky_day'
+          icon: (entry.data.next_1_hours || entry.data.next_6_hours || {}).summary?.symbol_code || 'clearsky_day',
+          interval: !entry.data.next_1_hours
         });
       });
 
@@ -147,18 +147,20 @@
           forecastGrid.innerHTML = '';
           const seen = new Set();
           const filtered = detailed ? entries : entries.filter(e => {
-            if (!seen.has(e.hour)) {
-              seen.add(e.hour);
+            const label = e.interval ? getIntervalLabel(e.time, timezone) : e.rawHour;
+            if (!seen.has(label)) {
+              seen.add(label);
               return true;
             }
             return false;
           });
 
           filtered.forEach(f => {
+            const label = f.interval && !detailed ? getIntervalLabel(f.time, timezone) : f.rawHour;
             const block = document.createElement('div');
             block.className = 'forecast-block';
             block.innerHTML = `
-              <div><strong>${f.hour}</strong></div>
+              <div><strong>${label}</strong></div>
               <img src="https://api.met.no/images/weathericons/svg/${f.icon}.svg" alt="${f.icon}" />
               <div>${f.temp}&deg;C</div>
               <div>${f.rain} mm</div>
