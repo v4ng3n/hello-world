@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather wForecast</title>
+  <title>Weather Forecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
   <style>
@@ -145,23 +145,29 @@
 
         const updateGrid = () => {
           forecastGrid.innerHTML = '';
-          const seen = new Set();
-          const filtered = entries.filter(e => {
-            const label = e.isInterval && !detailed ? getIntervalLabel(e.time, timezone) : e.hour;
-            if (detailed) return true;
-            if (!seen.has(label)) {
-              seen.add(label);
-              return true;
-            }
-            return false;
-          });
 
-          filtered.forEach(f => {
-            const label = f.isInterval && !detailed ? getIntervalLabel(f.time, timezone) : f.hour;
+          let displayEntries;
+          if (detailed) {
+            displayEntries = entries.map(e => ({ ...e, label: e.hour }));
+          } else {
+            const seen = new Set();
+            displayEntries = entries.map(e => ({
+              ...e,
+              label: e.isInterval ? getIntervalLabel(e.time, timezone) : e.hour
+            })).filter(e => {
+              if (!seen.has(e.label)) {
+                seen.add(e.label);
+                return true;
+              }
+              return false;
+            });
+          }
+
+          displayEntries.forEach(f => {
             const block = document.createElement('div');
             block.className = 'forecast-block';
             block.innerHTML = `
-              <div><strong>${label}</strong></div>
+              <div><strong>${f.label}</strong></div>
               <img src="https://api.met.no/images/weathericons/svg/${f.icon}.svg" alt="${f.icon}" />
               <div>${f.temp}&deg;C</div>
               <div>${f.rain} mm</div>
