@@ -182,7 +182,12 @@
       const sortedDays = Object.entries(grouped)
         .sort(([a], [b]) => new Date(a) - new Date(b))
         .slice(0, 3)
-        .map(([key, value]) => ({ dateKey: key, dateObj: new Date(key), entries: value.filter(e => e.date.getDate() === new Date(key).getDate()) }));
+        .map(([key, value]) => {
+          const dayStart = new Date(`${key}T00:00:00`);
+          const dayEnd = new Date(dayStart.getTime() + 86400000);
+          const entries = value.filter(e => e.date >= dayStart && e.date < dayEnd);
+          return { dateKey: key, dateObj: dayStart, entries };
+        });
 
       buildForecast(sortedDays);
     }
