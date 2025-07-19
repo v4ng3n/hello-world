@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather Forecast</title>
+  <title>Weather oForecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
   <style>
@@ -107,7 +107,10 @@
       const data = await response.json();
 
       const forecasts = {};
-      data.properties.timeseries.forEach(entry => {
+      const timeseries = data.properties.timeseries;
+
+      for (let i = 0; i < timeseries.length; i++) {
+        const entry = timeseries[i];
         const time = new Date(entry.time);
         const options = { timeZone: timezone, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
         const dateStr = new Intl.DateTimeFormat('en-GB', options).format(time);
@@ -123,7 +126,7 @@
           icon: (entry.data.next_1_hours || entry.data.next_6_hours || {}).summary?.symbol_code || 'clearsky_day',
           isInterval: !entry.data.next_1_hours
         });
-      });
+      }
 
       const days = Object.entries(forecasts).slice(0, 3);
       container.innerHTML = '';
@@ -148,26 +151,30 @@
 
           let displayEntries;
           if (detailed) {
-            displayEntries = entries.map(e => ({ ...e, label: e.hour }));
+            displayEntries = entries;
           } else {
-            const seen = new Set();
-            displayEntries = entries.map(e => ({
-              ...e,
-              label: e.isInterval ? getIntervalLabel(e.time, timezone) : e.hour
-            })).filter(e => {
-              if (!seen.has(e.label)) {
-                seen.add(e.label);
-                return true;
+            // Fixed 4 blocks: 00–06, 06–12, 12–18, 18–00
+            const intervals = [[0, 6], [6, 12], [12, 18], [18, 24]];
+            displayEntries = intervals.map(([start, end]) => {
+              const match = entries.find(e => {
+                const h = parseInt(e.hour);
+                return h >= start && h < end;
+              });
+              if (match) {
+                return {
+                  ...match,
+                  hour: `${String(start).padStart(2, '0')}-${String(end === 24 ? 0 : end).padStart(2, '0')}`
+                };
               }
-              return false;
-            });
+              return null;
+            }).filter(Boolean);
           }
 
           displayEntries.forEach(f => {
             const block = document.createElement('div');
             block.className = 'forecast-block';
             block.innerHTML = `
-              <div><strong>${f.label}</strong></div>
+              <div><strong>${f.hour}</strong></div>
               <img src="https://api.met.no/images/weathericons/svg/${f.icon}.svg" alt="${f.icon}" />
               <div>${f.temp}&deg;C</div>
               <div>${f.rain} mm</div>
@@ -190,12 +197,6 @@
         dayDiv.appendChild(forecastGrid);
         container.appendChild(dayDiv);
       });
-    }
-
-    function getIntervalLabel(date, tz) {
-      const localHour = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(date));
-      const endHour = (localHour + 6) % 24;
-      return `${String(localHour).padStart(2, '0')}-${String(endHour).padStart(2, '0')}`;
     }
 
     loadForecast(citySelect.value);
