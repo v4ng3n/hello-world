@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather oForecast</title>
+  <title>Weather Forecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
   <style>
@@ -171,10 +171,13 @@
           }
 
           displayEntries.forEach(f => {
+            const label = f.isInterval && detailed
+              ? `${String(f.hour).padStart(2, '0')}–${String((parseInt(f.hour) + 6) % 24).padStart(2, '0')}`
+              : f.hour;
             const block = document.createElement('div');
             block.className = 'forecast-block';
             block.innerHTML = `
-              <div><strong>${f.hour}</strong></div>
+              <div><strong>${label}</strong></div>
               <img src="https://api.met.no/images/weathericons/svg/${f.icon}.svg" alt="${f.icon}" />
               <div>${f.temp}&deg;C</div>
               <div>${f.rain} mm</div>
