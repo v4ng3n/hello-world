@@ -22,7 +22,7 @@
     <a href="#">Weather</a>
   </nav>
   <main>
-    <h1>Weather Forecast</h1>
+    <h1>Weather aForecast</h1>
     <label for="location">Select location:</label>
     <select id="location">
       <option value="bergen">Bergen</option>
@@ -73,7 +73,7 @@
       rawData.forEach(entry => {
         const local = getLocalDateTime(entry.time, timezone);
         if (local < localNow) return;
-        const dateKey = local.toISOString().split('T')[0];
+        const dateKey = `${local.getFullYear()}-${String(local.getMonth()+1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
         if (!grouped[dateKey]) grouped[dateKey] = [];
         grouped[dateKey].push({
           date: local,
