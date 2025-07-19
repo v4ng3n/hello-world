@@ -80,6 +80,40 @@
       return local;
     }
 
+    function buildForecast(days) {
+      const forecastDiv = document.getElementById('forecast');
+      forecastDiv.innerHTML = '';
+      days.forEach(({ dateKey, dateObj, entries }) => {
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day';
+        const weekday = weekdays[dateObj.getDay()];
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        let label = weekday;
+        if (dateObj.getTime() === today.getTime()) label += ' – Today';
+        else if (dateObj.getTime() === today.getTime() + 86400000) label += ' – Tomorrow';
+        else if (dateObj.getTime() === today.getTime() + 2 * 86400000) label += ' – Day after tomorrow';
+        label += ` (${formatDate(dateObj)})`;
+        const header = document.createElement('h3');
+        header.textContent = label;
+        dayDiv.appendChild(header);
+
+        const content = document.createElement('div');
+        content.className = 'content';
+
+        entries.forEach(({ date, temp, rain, wind, symbol }) => {
+          const item = document.createElement('div');
+          item.className = 'hour';
+          const icon = `https://api.met.no/images/weathericons/svg/${symbol}.svg`;
+          item.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(date)}</strong> – ${temp}°C, ${rain} mm, ${wind} m/s`;
+          content.appendChild(item);
+        });
+
+        dayDiv.appendChild(content);
+        forecastDiv.appendChild(dayDiv);
+      });
+    }
+
     async function updateForecast() {
       const loc = document.getElementById('location').value;
       const { lat, lon, tzName } = locations[loc];
