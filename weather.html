@@ -96,14 +96,18 @@
         let lastHour = null;
         let buffer = [];
         const flushBuffer = (startHour, endHour, data) => {
+          if (startHour === 23 && endHour === 24) {
+            endHour = null; // Show just 23 without range
+          }
           const avgTemp = Math.round(data.reduce((sum, b) => sum + b.temp, 0) / data.length);
           const avgWind = Math.round(data.reduce((sum, b) => sum + b.wind, 0) / data.length);
           const totalRain = data.reduce((sum, b) => sum + b.rain, 0).toFixed(1);
           const icon = data[Math.floor(data.length / 2)].symbol;
           const intervalDiv = document.createElement('div');
           intervalDiv.className = 'hour';
+          const label = endHour === null ? `${String(startHour).padStart(2,'0')}` : `${String(startHour).padStart(2,'0')}–${String(endHour).padStart(2,'0')}`;
           intervalDiv.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${icon}.svg">
-            <div><strong>${String(startHour).padStart(2,'0')}–${String(endHour).padStart(2,'0')}</strong> – ${avgTemp}°C, ${totalRain} mm, ${avgWind} m/s</div>`;
+            <div><strong>${label}</strong> – ${avgTemp}°C, ${totalRain} mm, ${avgWind} m/s</div>`;
           hourlyDiv.appendChild(intervalDiv);
         };
 
@@ -113,7 +117,7 @@
 
           if (lastHour !== null && (currentHour - lastHour > 1 || currentHour <= lastHour)) {
             if (buffer.length > 0) {
-              flushBuffer(buffer[0].date.getHours(), buffer[buffer.length - 1].date.getHours(), buffer);
+              flushBuffer(buffer[0].date.getHours(), buffer[buffer.length - 1].date.getHours() + 1, buffer);
               buffer = [];
             }
           }
@@ -131,7 +135,14 @@
           lastHour = currentHour;
         }
         if (buffer.length > 0) {
-          flushBuffer(buffer[0].date.getHours(), buffer[buffer.length - 1].date.getHours() + 1, buffer);
+          const last = buffer[buffer.length - 1];
+          const startHour = buffer[0].date.getHours();
+          const endHour = last.date.getHours();
+          if (startHour === endHour) {
+            flushBuffer(startHour, null, buffer);
+          } else {
+            flushBuffer(startHour, endHour + 1, buffer);
+          }
         }
 
         const toggle = document.createElement('button');
