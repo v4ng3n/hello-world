@@ -123,11 +123,12 @@ async function updateForecast() {
 
   const grouped = {};
   rawData.forEach(entry => {
-    const dt = new Date(entry.time);
-    const dateKey = dt.toISOString().split('T')[0];
+    const utc = new Date(entry.time);
+    const local = new Date(utc.getTime() - utc.getTimezoneOffset() * 60000);
+    const dateKey = local.toISOString().split('T')[0];
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push({
-      date: dt,
+      date: local,
       temp: Math.round(entry.data.instant.details.air_temperature),
       wind: Math.round(entry.data.instant.details.wind_speed || 0),
       rain: entry.data.next_1_hours?.details?.precipitation_amount || 0,
