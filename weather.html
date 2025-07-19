@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather Forecast</title>
+  <title>Weather ooForecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
   <style>
@@ -151,16 +151,10 @@
 
           let displayEntries;
           if (detailed) {
-            displayEntries = entries.map((f, i) => {
-              const currentHour = parseInt(f.hour);
-              const next = entries[i + 1];
-              const nextHour = next ? parseInt(next.hour) : null;
-              const gap = nextHour !== null ? (nextHour - currentHour + 24) % 24 : 1;
-              const label = f.isInterval && gap > 1
-                ? `${String(currentHour).padStart(2, '0')}–${String((currentHour + gap) % 24).padStart(2, '0')}`
-                : String(currentHour).padStart(2, '0');
-              return { ...f, hour: label };
-            });
+            displayEntries = entries.map(e => ({
+              ...e,
+              hour: String(e.hour).padStart(2, '0')
+            }));
           } else {
             const intervals = [[0, 6], [6, 12], [12, 18], [18, 24]];
             displayEntries = intervals.map(([start, end]) => {
