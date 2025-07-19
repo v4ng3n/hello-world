@@ -73,7 +73,6 @@ function buildForecast(days) {
     const hourlyDiv = document.createElement('div');
     hourlyDiv.style.display = 'none';
 
-    // Split into intervals and hourly
     const intervals = [[0,6],[6,12],[12,18],[18,24]];
     intervals.forEach(([start, end]) => {
       const block = entries.filter(e => e.date.getHours() >= start && e.date.getHours() < end);
@@ -125,7 +124,7 @@ async function updateForecast() {
   rawData.forEach(entry => {
     const utc = new Date(entry.time);
     const local = new Date(utc.getTime() - utc.getTimezoneOffset() * 60000);
-    const dateKey = local.toISOString().split('T')[0];
+    const dateKey = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push({
       date: local,
