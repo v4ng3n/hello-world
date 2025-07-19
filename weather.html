@@ -158,8 +158,7 @@
       const loc = document.getElementById('location').value;
       const { lat, lon, tzName } = locations[loc];
       const rawData = await fetchForecast(lat, lon);
-      const now = new Date().toLocaleString('en-US', { timeZone: tzName });
-      const localNow = new Date(now);
+      const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: tzName }));
 
       const grouped = {};
       rawData.forEach(entry => {
