@@ -97,27 +97,31 @@
         const render = () => {
           content.innerHTML = '';
           if (detailed) {
-            for (let i = 0; i < entries.length; i++) {
-              const curr = entries[i];
-              const prev = entries[i - 1];
-              const gap = prev ? (curr.date - prev.date) / 3600000 : 1;
-
-              if (gap > 1 && gap < 12) {
-                const label = `${formatHour(prev.date)}–${formatHour(curr.date)}`;
-                const avgTemp = Math.round((prev.temp + curr.temp) / 2);
-                const avgRain = ((prev.rain + curr.rain) / 2).toFixed(1);
-                const avgWind = Math.round((prev.wind + curr.wind) / 2);
-                const div = document.createElement('div');
-                div.className = 'interval';
-                div.innerHTML = `<strong>${label}</strong> – ${avgTemp} °C, ${avgRain} mm, ${avgWind} m/s`;
-                content.appendChild(div);
-              }
+            let i = 0;
+            while (i < entries.length) {
+              const current = entries[i];
+              const next = entries[i + 1];
+              const gap = next ? (next.date - current.date) / 3600000 : 0;
 
               const div = document.createElement('div');
               div.className = 'hour';
-              const icon = `https://api.met.no/images/weathericons/svg/${curr.symbol}.svg`;
-              div.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(curr.date)}</strong> – ${curr.temp} °C, ${curr.rain} mm, ${curr.wind} m/s`;
+              const icon = `https://api.met.no/images/weathericons/svg/${current.symbol}.svg`;
+              div.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(current.date)}</strong> – ${current.temp} °C, ${current.rain} mm, ${current.wind} m/s`;
               content.appendChild(div);
+
+              if (gap > 1) {
+                let startHour = formatHour(current.date);
+                let endHour = formatHour(next.date);
+                const avgTemp = Math.round((current.temp + next.temp) / 2);
+                const avgRain = ((current.rain + next.rain) / 2).toFixed(1);
+                const avgWind = Math.round((current.wind + next.wind) / 2);
+
+                const intervalDiv = document.createElement('div');
+                intervalDiv.className = 'interval';
+                intervalDiv.innerHTML = `<strong>${startHour}–${endHour}</strong> – ${avgTemp} °C, ${avgRain} mm, ${avgWind} m/s`;
+                content.appendChild(intervalDiv);
+              }
+              i++;
             }
           } else {
             for (let start = 0; start < 24; start += 6) {
@@ -178,7 +182,7 @@
       const sortedDays = Object.entries(grouped)
         .sort(([a], [b]) => new Date(a) - new Date(b))
         .slice(0, 3)
-        .map(([key, value]) => ({ dateKey: key, dateObj: new Date(key), entries: value }));
+        .map(([key, value]) => ({ dateKey: key, dateObj: new Date(key), entries: value.filter(e => e.date.getDate() === new Date(key).getDate()) }));
 
       buildForecast(sortedDays);
     }
