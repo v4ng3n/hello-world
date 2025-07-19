@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weather yForecast</title>
+  <title>Weather Forecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
   <style>
@@ -115,13 +115,13 @@
 
         if (!forecasts[dateStr]) forecasts[dateStr] = [];
         forecasts[dateStr].push({
-          rawHour: hour,
+          hour,
           time,
           temp: Math.round(entry.data.instant.details.air_temperature),
           wind: Math.round(entry.data.instant.details.wind_speed),
           rain: entry.data.next_1_hours ? entry.data.next_1_hours.details.precipitation_amount.toFixed(1) : '0.0',
           icon: (entry.data.next_1_hours || entry.data.next_6_hours || {}).summary?.symbol_code || 'clearsky_day',
-          interval: !entry.data.next_1_hours
+          isInterval: !entry.data.next_1_hours
         });
       });
 
@@ -147,7 +147,7 @@
           forecastGrid.innerHTML = '';
           const seen = new Set();
           const filtered = detailed ? entries : entries.filter(e => {
-            const label = e.interval ? getIntervalLabel(e.time, timezone) : e.rawHour;
+            const label = e.isInterval ? getIntervalLabel(e.time, timezone) : e.hour;
             if (!seen.has(label)) {
               seen.add(label);
               return true;
@@ -156,7 +156,7 @@
           });
 
           filtered.forEach(f => {
-            const label = f.interval && !detailed ? getIntervalLabel(f.time, timezone) : f.rawHour;
+            const label = f.isInterval && !detailed ? getIntervalLabel(f.time, timezone) : f.hour;
             const block = document.createElement('div');
             block.className = 'forecast-block';
             block.innerHTML = `
@@ -187,8 +187,8 @@
 
     function getIntervalLabel(date, tz) {
       const localHour = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(date));
-      const nextHour = (localHour + 6) % 24;
-      return `${String(localHour).padStart(2, '0')}-${String(nextHour).padStart(2, '0')}`;
+      const endHour = (localHour + 6) % 24;
+      return `${String(localHour).padStart(2, '0')}-${String(endHour).padStart(2, '0')}`;
     }
 
     loadForecast(citySelect.value);
