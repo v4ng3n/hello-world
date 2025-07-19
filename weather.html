@@ -73,6 +73,7 @@ function buildForecast(days) {
     const hourlyDiv = document.createElement('div');
     hourlyDiv.style.display = 'none';
 
+    // Summary view (static 6-hour intervals)
     const intervals = [[0,6],[6,12],[12,18],[18,24]];
     intervals.forEach(([start, end]) => {
       const block = entries.filter(e => e.date.getHours() >= start && e.date.getHours() < end);
@@ -90,13 +91,48 @@ function buildForecast(days) {
       }
     });
 
-    entries.forEach(e => {
-      const hourDiv = document.createElement('div');
-      hourDiv.className = 'hour';
-      hourDiv.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${e.symbol}.svg">
-        <div><strong>${formatHour(e.date)}</strong> – ${e.temp}°C, ${e.rain} mm, ${e.wind} m/s</div>`;
-      hourlyDiv.appendChild(hourDiv);
-    });
+    // Detailed view (hourly + interval grouping after hourly ends)
+    let lastHour = null;
+    let buffer = [];
+    const flushBuffer = (startHour, endHour, data) => {
+      const avgTemp = Math.round(data.reduce((sum, b) => sum + b.temp, 0) / data.length);
+      const avgWind = Math.round(data.reduce((sum, b) => sum + b.wind, 0) / data.length);
+      const totalRain = data.reduce((sum, b) => sum + b.rain, 0).toFixed(1);
+      const icon = data[Math.floor(data.length / 2)].symbol;
+      const intervalDiv = document.createElement('div');
+      intervalDiv.className = 'hour';
+      intervalDiv.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${icon}.svg">
+        <div><strong>${String(startHour).padStart(2,'0')}–${String(endHour).padStart(2,'0')}</strong> – ${avgTemp}°C, ${totalRain} mm, ${avgWind} m/s</div>`;
+      hourlyDiv.appendChild(intervalDiv);
+    };
+
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      const currentHour = e.date.getHours();
+
+      if (lastHour !== null && (currentHour - lastHour > 1 || currentHour <= lastHour)) {
+        if (buffer.length > 0) {
+          flushBuffer(buffer[0].date.getHours(), buffer[buffer.length - 1].date.getHours(), buffer);
+          buffer = [];
+        }
+      }
+
+      if (i + 1 < entries.length && entries[i + 1].date.getHours() - currentHour === 1) {
+        // Show this as hourly
+        const hourDiv = document.createElement('div');
+        hourDiv.className = 'hour';
+        hourDiv.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${e.symbol}.svg">
+          <div><strong>${formatHour(e.date)}</strong> – ${e.temp}°C, ${e.rain} mm, ${e.wind} m/s</div>`;
+        hourlyDiv.appendChild(hourDiv);
+      } else {
+        buffer.push(e);
+      }
+
+      lastHour = currentHour;
+    }
+    if (buffer.length > 0) {
+      flushBuffer(buffer[0].date.getHours(), buffer[buffer.length - 1].date.getHours() + 1, buffer);
+    }
 
     const toggle = document.createElement('button');
     toggle.className = 'toggle-btn';
