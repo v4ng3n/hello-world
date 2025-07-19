@@ -34,10 +34,10 @@
   </main>
   <script>
     const locations = {
-      bergen: { lat: 60.3913, lon: 5.3221, tzOffset: 1 },
-      aalborg: { lat: 57.0488, lon: 9.9217, tzOffset: 1 },
-      hormested: { lat: 57.528, lon: 10.139, tzOffset: 1 },
-      vojens: { lat: 55.25, lon: 9.3, tzOffset: 1 }
+      bergen: { lat: 60.3913, lon: 5.3221, tzName: 'Europe/Oslo' },
+      aalborg: { lat: 57.0488, lon: 9.9217, tzName: 'Europe/Copenhagen' },
+      hormested: { lat: 57.528, lon: 10.139, tzName: 'Europe/Copenhagen' },
+      vojens: { lat: 55.25, lon: 9.3, tzName: 'Europe/Copenhagen' }
     };
 
     const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -58,125 +58,37 @@
       return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth()+1).padStart(2, '0')}-${date.getFullYear()}`;
     }
 
-    function buildForecast(days) {
-      const container = document.getElementById('forecast');
-      container.innerHTML = '';
+    function getLocalTime(utcDate, tzName) {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: tzName,
+        hour12: false,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      }).formatToParts(utcDate).reduce((acc, part) => {
+        if (part.type !== 'literal') acc[part.type] = part.value;
+        return acc;
+      }, {});
 
-      days.forEach(({ dateKey, dateObj, entries }, index) => {
-        const div = document.createElement('div');
-        div.className = 'day';
-        const weekday = weekdays[dateObj.getDay()];
-        const label = index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : 'Day after tomorrow';
-
-        const title = document.createElement('h3');
-        title.textContent = `${weekday} – ${label} (${formatDate(dateObj)})`;
-        div.appendChild(title);
-
-        const summaryDiv = document.createElement('div');
-        const hourlyDiv = document.createElement('div');
-        hourlyDiv.style.display = 'none';
-
-        const intervals = [[0,6],[6,12],[12,18],[18,24]];
-        intervals.forEach(([start, end]) => {
-          const block = entries.filter(e => e.date.getHours() >= start && e.date.getHours() < end);
-          if (block.length > 0) {
-            const avgTemp = Math.round(block.reduce((sum, b) => sum + b.temp, 0) / block.length);
-            const avgWind = Math.round(block.reduce((sum, b) => sum + b.wind, 0) / block.length);
-            const totalRain = block.reduce((sum, b) => sum + b.rain, 0).toFixed(1);
-            const icon = block[Math.floor(block.length / 2)].symbol;
-
-            const interval = document.createElement('div');
-            interval.className = 'interval';
-            interval.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${icon}.svg">
-              <div><strong>${String(start).padStart(2,'0')}–${String(end % 24).padStart(2,'0')}</strong> – ${avgTemp}°C, ${totalRain} mm, ${avgWind} m/s</div>`;
-            summaryDiv.appendChild(interval);
-          }
-        });
-
-        let lastHour = null;
-        let buffer = [];
-        let showAsHourly = true;
-        for (let i = 0; i < entries.length; i++) {
-          const e = entries[i];
-          const currentHour = e.date.getHours();
-
-          if (lastHour !== null) {
-            const diff = currentHour - lastHour;
-            if (diff !== 1 && !(lastHour === 23 && currentHour === 0)) {
-              showAsHourly = false;
-            }
-          }
-
-          if (showAsHourly) {
-            const hourDiv = document.createElement('div');
-            hourDiv.className = 'hour';
-            hourDiv.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${e.symbol}.svg">
-              <div><strong>${formatHour(e.date)}</strong> – ${e.temp}°C, ${e.rain} mm, ${e.wind} m/s</div>`;
-            hourlyDiv.appendChild(hourDiv);
-          } else {
-            if (lastHour !== null && (currentHour - lastHour > 1 || currentHour <= lastHour)) {
-              if (buffer.length > 0) {
-                const startHour = buffer[0].date.getHours();
-                const endHour = buffer[buffer.length - 1].date.getHours();
-                const avgTemp = Math.round(buffer.reduce((sum, b) => sum + b.temp, 0) / buffer.length);
-                const avgWind = Math.round(buffer.reduce((sum, b) => sum + b.wind, 0) / buffer.length);
-                const totalRain = buffer.reduce((sum, b) => sum + b.rain, 0).toFixed(1);
-                const icon = buffer[Math.floor(buffer.length / 2)].symbol;
-                const intervalDiv = document.createElement('div');
-                intervalDiv.className = 'hour';
-                const label = `${String(startHour).padStart(2,'0')}–${String(endHour + 1).padStart(2,'0')}`;
-                intervalDiv.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${icon}.svg">
-                  <div><strong>${label}</strong> – ${avgTemp}°C, ${totalRain} mm, ${avgWind} m/s</div>`;
-                hourlyDiv.appendChild(intervalDiv);
-                buffer = [];
-              }
-            }
-            buffer.push(e);
-          }
-          lastHour = currentHour;
-        }
-
-        if (buffer.length > 0 && !showAsHourly) {
-          const startHour = buffer[0].date.getHours();
-          const endHour = buffer[buffer.length - 1].date.getHours();
-          const avgTemp = Math.round(buffer.reduce((sum, b) => sum + b.temp, 0) / buffer.length);
-          const avgWind = Math.round(buffer.reduce((sum, b) => sum + b.wind, 0) / buffer.length);
-          const totalRain = buffer.reduce((sum, b) => sum + b.rain, 0).toFixed(1);
-          const icon = buffer[Math.floor(buffer.length / 2)].symbol;
-          const intervalDiv = document.createElement('div');
-          intervalDiv.className = 'hour';
-          const label = `${String(startHour).padStart(2,'0')}–${String(endHour + 1).padStart(2,'0')}`;
-          intervalDiv.innerHTML = `<img src="https://api.met.no/images/weathericons/svg/${icon}.svg">
-            <div><strong>${label}</strong> – ${avgTemp}°C, ${totalRain} mm, ${avgWind} m/s</div>`;
-          hourlyDiv.appendChild(intervalDiv);
-        }
-
-        const toggle = document.createElement('button');
-        toggle.className = 'toggle-btn';
-        toggle.textContent = 'Detailed view';
-        toggle.onclick = () => {
-          const showDetail = hourlyDiv.style.display === 'none';
-          summaryDiv.style.display = showDetail ? 'none' : 'block';
-          hourlyDiv.style.display = showDetail ? 'block' : 'none';
-          toggle.textContent = showDetail ? 'Hide details' : 'Detailed view';
-        };
-
-        div.appendChild(summaryDiv);
-        div.appendChild(hourlyDiv);
-        div.appendChild(toggle);
-        container.appendChild(div);
-      });
+      const local = new Date();
+      local.setFullYear(+parts.year);
+      local.setMonth(+parts.month - 1);
+      local.setDate(+parts.day);
+      local.setHours(+parts.hour);
+      local.setMinutes(+parts.minute);
+      local.setSeconds(0);
+      local.setMilliseconds(0);
+      return local;
     }
 
     async function updateForecast() {
       const loc = document.getElementById('location').value;
-      const { lat, lon, tzOffset } = locations[loc];
+      const { lat, lon, tzName } = locations[loc];
       const rawData = await fetchForecast(lat, lon);
 
       const grouped = {};
       rawData.forEach(entry => {
         const utc = new Date(entry.time);
-        const local = new Date(utc.getTime() + tzOffset * 60 * 60 * 1000);
+        const local = getLocalTime(utc, tzName);
         const dateKey = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
         if (!grouped[dateKey]) grouped[dateKey] = [];
         grouped[dateKey].push({
