@@ -22,7 +22,7 @@
     <a href="#">Weather</a>
   </nav>
   <main>
-    <h1>Weather Forecast</h1>
+    <h1>Weather aForecast</h1>
     <label for="location">Select location:</label>
     <select id="location">
       <option value="bergen">Bergen</option>
@@ -183,7 +183,7 @@
         .sort(([a], [b]) => new Date(a) - new Date(b))
         .slice(0, 3)
         .map(([key, value]) => {
-          const dayStart = new Date(`${key}T00:00:00`);
+          const dayStart = getLocalDateTime(`${key}T00:00:00`, tzName);
           const dayEnd = new Date(dayStart.getTime() + 86400000);
           const entries = value.filter(e => e.date >= dayStart && e.date < dayEnd);
           return { dateKey: key, dateObj: dayStart, entries };
