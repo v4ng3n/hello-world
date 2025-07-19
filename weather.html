@@ -144,7 +144,7 @@
 
         const updateGrid = () => {
           forecastGrid.innerHTML = '';
-          const filtered = detailed ? entries : groupIntoIntervalsFull(entries);
+          const filtered = detailed ? entries : groupIntoIntervals(entries);
           filtered.forEach(f => {
             const block = document.createElement('div');
             block.className = 'forecast-block';
@@ -174,22 +174,26 @@
       });
     }
 
-    function groupIntoIntervalsFull(entries) {
-      const hourly = entries.filter(e => parseInt(e.hour) === e.time.getHours());
-      const result = [...hourly];
-      const used = new Set(hourly.map(e => e.hour));
+    function groupIntoIntervals(entries) {
+      const grouped = [];
+      const used = new Set();
+      const intervals = [[0, 6], [6, 12], [12, 18], [18, 24]];
 
-      let startIdx = hourly.length;
-      while (startIdx < entries.length) {
-        const from = entries[startIdx].time.getHours();
-        const nextSix = entries.slice(startIdx, startIdx + 6);
-        const intervalEnd = nextSix[nextSix.length - 1]?.time.getHours() ?? (from + 6) % 24;
-        const label = `${String(from).padStart(2, '0')}-${String((intervalEnd + 1) % 24).padStart(2, '0')}`;
-        result.push({ ...entries[startIdx], hour: label });
-        startIdx += 6;
-      }
+      intervals.forEach(([start, end]) => {
+        const match = entries.find(e => {
+          const h = parseInt(e.hour);
+          return h >= start && h < end && !used.has(e.hour);
+        });
+        if (match) {
+          grouped.push({
+            ...match,
+            hour: `${String(start).padStart(2, '0')}-${String(end % 24).padStart(2, '0')}`
+          });
+          used.add(match.hour);
+        }
+      });
 
-      return result;
+      return grouped;
     }
 
     loadForecast(citySelect.value);
