@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Weather Forecast</title>
   <style>
     body { font-family: sans-serif; background: #f5f5f5; margin: 0; }
@@ -59,41 +59,31 @@
     }
 
     function getLocalTime(utcDate, tzName) {
-      const parts = new Intl.DateTimeFormat('en-GB', {
+      return new Date(new Intl.DateTimeFormat('en-GB', {
         timeZone: tzName,
-        hour12: false,
         year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit'
-      }).formatToParts(utcDate).reduce((acc, part) => {
-        if (part.type !== 'literal') acc[part.type] = part.value;
-        return acc;
-      }, {});
-
-      const local = new Date();
-      local.setFullYear(+parts.year);
-      local.setMonth(+parts.month - 1);
-      local.setDate(+parts.day);
-      local.setHours(+parts.hour);
-      local.setMinutes(+parts.minute);
-      local.setSeconds(0);
-      local.setMilliseconds(0);
-      return local;
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      }).format(utcDate).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2})/, '$3-$2-$1T$4:$5:00'));
     }
 
     function buildForecast(days) {
       const forecastDiv = document.getElementById('forecast');
       forecastDiv.innerHTML = '';
+
       days.forEach(({ dateKey, dateObj, entries }) => {
         const dayDiv = document.createElement('div');
         dayDiv.className = 'day';
+
         const weekday = weekdays[dateObj.getDay()];
         const today = new Date();
         today.setHours(0,0,0,0);
+
         let label = weekday;
         if (dateObj.getTime() === today.getTime()) label += ' – Today';
         else if (dateObj.getTime() === today.getTime() + 86400000) label += ' – Tomorrow';
         else if (dateObj.getTime() === today.getTime() + 2 * 86400000) label += ' – Day after tomorrow';
         label += ` (${formatDate(dateObj)})`;
+
         const header = document.createElement('h3');
         header.textContent = label;
         dayDiv.appendChild(header);
@@ -101,14 +91,72 @@
         const content = document.createElement('div');
         content.className = 'content';
 
-        entries.forEach(({ date, temp, rain, wind, symbol }) => {
-          const item = document.createElement('div');
-          item.className = 'hour';
-          const icon = `https://api.met.no/images/weathericons/svg/${symbol}.svg`;
-          item.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(date)}</strong> – ${temp}°C, ${rain} mm, ${wind} m/s`;
-          content.appendChild(item);
-        });
+        const button = document.createElement('button');
+        button.className = 'toggle-btn';
+        button.textContent = 'Detailed view';
 
+        let detailed = false;
+
+        const render = () => {
+          content.innerHTML = '';
+          if (detailed) {
+            const startHour = entries[0].date.getHours();
+            let lastHour = startHour - 1;
+            for (let i = 0; i < entries.length; i++) {
+              const { date, temp, rain, wind, symbol } = entries[i];
+              const hour = date.getHours();
+              if (hour - lastHour > 1 && hour - lastHour < 23) {
+                const label = `${String(lastHour).padStart(2, '0')}–${String(hour).padStart(2, '0')}`;
+                const avg = entries.slice(i - 1, i + 1).reduce((acc, e) => {
+                  acc.temp += e.temp;
+                  acc.rain += e.rain;
+                  acc.wind += e.wind;
+                  return acc;
+                }, { temp: 0, rain: 0, wind: 0 });
+                const div = document.createElement('div');
+                div.className = 'interval';
+                div.innerHTML = `<strong>${label}</strong> – ${Math.round(avg.temp/2)}°C, ${avg.rain.toFixed(1)} mm, ${Math.round(avg.wind/2)} m/s`;
+                content.appendChild(div);
+              }
+              const div = document.createElement('div');
+              div.className = 'hour';
+              const icon = `https://api.met.no/images/weathericons/svg/${symbol}.svg`;
+              div.innerHTML = `<img src="${icon}" alt=""> <strong>${formatHour(date)}</strong> – ${temp}°C, ${rain} mm, ${wind} m/s`;
+              content.appendChild(div);
+              lastHour = hour;
+            }
+          } else {
+            for (let blockStart = 0; blockStart < 24; blockStart += 6) {
+              const blockEnd = blockStart + 6;
+              const block = entries.filter(e => {
+                const h = e.date.getHours();
+                return h >= blockStart && h < blockEnd;
+              });
+              if (block.length) {
+                const avg = block.reduce((acc, e) => {
+                  acc.temp += e.temp;
+                  acc.rain += e.rain;
+                  acc.wind += e.wind;
+                  return acc;
+                }, { temp: 0, rain: 0, wind: 0 });
+                const icon = `https://api.met.no/images/weathericons/svg/${block[0].symbol}.svg`;
+                const div = document.createElement('div');
+                div.className = 'interval';
+                div.innerHTML = `<img src="${icon}" alt=""> <strong>${String(blockStart).padStart(2, '0')}–${String(blockEnd).padStart(2, '0')}</strong> – ${Math.round(avg.temp/block.length)}°C, ${avg.rain.toFixed(1)} mm, ${Math.round(avg.wind/block.length)} m/s`;
+                content.appendChild(div);
+              }
+            }
+          }
+        };
+
+        button.onclick = () => {
+          detailed = !detailed;
+          button.textContent = detailed ? 'Hide details' : 'Detailed view';
+          render();
+        };
+
+        render();
+        dayDiv.appendChild(button);
         dayDiv.appendChild(content);
         forecastDiv.appendChild(dayDiv);
       });
