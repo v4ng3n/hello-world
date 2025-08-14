@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Home</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Page-specific styles for Home */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.25em;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .stack { display: grid; gap: 1em; }
+    .time { font-size: 1.1rem; }
+    button {
+      margin-top: 1em;
+      padding: 0.5em 1em;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+    }
+    button:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html" aria-current="page">Home</a>
+    <a href="weather.html">Weather</a>
+  </nav>
+
+  <main class="stack">
+    <h1>Hello, world!</h1>
+
+    <div class="card">
+      <div class="time">
+        The current time is:
+        <span id="now">--:--:--</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <p><strong>Feeling curious?</strong></p>
+      <button id="factBtn" type="button">Show random fact</button>
+      <div id="fact" style="margin-top:0.75em;"></div>
+    </div>
+  </main>
+
+  <script>
+    // Live time
+    function updateTime() {
+      const el = document.getElementById('now');
+      const dt = new Date();
+      el.textContent = dt.toLocaleTimeString([], {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Random fact
+    async function getFact() {
+      const factEl = document.getElementById('fact');
+      factEl.textContent = 'Loading…';
+      try {
+        const res = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random?language=en');
+        if (!res.ok) throw new Error('Bad response');
+        const data = await res.json();
+        factEl.textContent = (data && data.text) ? data.text : 'No fact found.';
+      } catch (e) {
+        factEl.textContent = 'Failed to load a fact. Please try again.';
+      }
+    }
+    document.getElementById('factBtn').addEventListener('click', getFact);
+  </script>
+</body>
+</html>
