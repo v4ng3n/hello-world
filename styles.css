@@ -1,0 +1,41 @@
+/* Shared base styles for all pages */
+body {
+  font-family: sans-serif;
+  margin: 0;
+  background: #f4f4f4;
+}
+
+/* Top navigation */
+nav {
+  background: #333;
+  padding: 1em;
+  color: white;
+  display: flex;
+  gap: 1em;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+nav a[aria-current="page"] {
+  text-decoration: underline;
+}
+
+nav a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Shared page layout */
+main {
+  padding: 2em;
+  max-width: 800px;
+  margin: auto;
+}
