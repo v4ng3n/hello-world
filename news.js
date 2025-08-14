@@ -1,6 +1,8 @@
 // ===== Edit your feeds here =====
 const FEEDS = [
-  'https://www.dr.dk/nyheder/service/feeds/allenyheder',
+
+  'https://ing.dk/rss/traffik',
+'https://www.dr.dk/nyheder/service/feeds/allenyheder',
   'https://nrkbeta.no/feed/',
   'https://feeds.arstechnica.com/arstechnica/index/'
 ];
