@@ -3,11 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>News – RSS Reader</title>
+  <title>News2 – RSS Reader</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Page-specific styles for News */
-    .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
     .grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
     @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
     .card {
@@ -30,40 +28,36 @@
 
   <main>
     <h1>News</h1>
-    <p>Edit the feeds directly in this file: look for the <code class="inline">FEEDS</code> array below and add/remove URLs.</p>
+    <p>Edit the feeds directly in this file: update the <code class="inline">FEEDS</code> array below and deploy.</p>
 
     <div id="status" class="meta"></div>
     <div id="articles" class="grid"></div>
   </main>
 
   <script>
-    // ===== Edit your feeds here =====
+    // ===== Your feeds (edit these) =====
     const FEEDS = [
       'https://www.dr.dk/nyheder/service/feeds/allenyheder',
-      'https://www.dr.dk/nyheder/service/feeds/senestenyt',
       'https://nrkbeta.no/feed/',
       'https://feeds.arstechnica.com/arstechnica/index/'
     ];
 
-    // Public fallback CORS proxy (no signup; best-effort uptime).
-    const PROXY_BASE = 'https://api.allorigins.win/raw?url=';
+    // Always use AllOrigins to bypass CORS
+    const PROXY = 'https://api.allorigins.win/raw?url=';
 
-    async function fetchText(url) {
-      try {
-        const res = await fetch(url, { headers: { 'Accept': 'application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8' } });
-        if (res.ok) return await res.text();
-      } catch (e) {}
-      const proxied = PROXY_BASE + encodeURIComponent(url);
-      const res2 = await fetch(proxied);
-      if (!res2.ok) throw new Error('Proxy fetch failed');
-      return await res2.text();
+    async function fetchViaProxy(url) {
+      const proxied = PROXY + encodeURIComponent(url);
+      const res = await fetch(proxied, {
+        headers: { 'Accept': 'application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8' }
+      });
+      if (!res.ok) throw new Error(`Proxy ${res.status}`);
+      return res.text();
     }
 
     async function fetchFeed(url) {
-      const xmlText = await fetchText(url);
+      const xmlText = await fetchViaProxy(url);
       const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
-      const parseError = xml.querySelector('parsererror');
-      if (parseError) throw new Error('Invalid XML');
+      if (xml.querySelector('parsererror')) throw new Error('Invalid XML');
       return xml;
     }
 
@@ -73,7 +67,7 @@
       return items.map(node => {
         const title = node.querySelector('title')?.textContent?.trim() || 'Untitled';
         const linkEl = node.querySelector('link');
-        const href = (linkEl && linkEl.getAttribute && linkEl.getAttribute('href')) || (linkEl && linkEl.textContent) || '#';
+        const href = (linkEl?.getAttribute?.('href')) || (linkEl?.textContent) || '#';
         const link = href.startsWith('http') ? href : href.replace(/^\\/+/, 'https://');
         const pub = node.querySelector('pubDate, updated, published')?.textContent || '';
         const sourceTitle = feedTitle || (link ? new URL(link, location.href).hostname : 'Feed');
@@ -112,7 +106,7 @@
             const items = extractItems(xml, 8);
             return items;
           } catch (e) {
-            return { error: true, url };
+            return { error: true, url, e };
           }
         })
       );
@@ -127,21 +121,12 @@
         }
       });
 
-      okItems.sort((a,b) => {
-        const ta = Date.parse(a.pub || '') || 0;
-        const tb = Date.parse(b.pub || '') || 0;
-        return tb - ta;
-      });
-
+      okItems.sort((a,b) => (Date.parse(b.pub || '') || 0) - (Date.parse(a.pub || '') || 0));
       renderArticles(okItems);
 
-      if (errors.length) {
-        status.innerHTML = '<span class="error">Some feeds failed to load:</span> ' + errors.map(u => {
-          try { return new URL(u).hostname; } catch { return u; }
-        }).join(', ');
-      } else {
-        status.textContent = 'All feeds loaded.';
-      }
+      status.innerHTML = errors.length
+        ? '<span class="error">Some feeds failed to load:</span> ' + errors.map(u => { try { return new URL(u).hostname; } catch { return u; } }).join(', ')
+        : 'All feeds loaded.';
     }
 
     refresh();
