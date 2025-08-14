@@ -1,14 +1,14 @@
 // ===== Edit your feeds here =====
 const FEEDS = [
   'https://www.dr.dk/nyheder/service/feeds/allenyheder',
-  'https://www.dr.dk/nyheder/service/feeds/politik',
   'https://nrkbeta.no/feed/',
   'https://feeds.arstechnica.com/arstechnica/index/'
 ];
 
-// Always use AllOrigins to bypass CORS (no setup, best-effort reliability)
+// Always use AllOrigins to bypass CORS
 const PROXY = 'https://api.allorigins.win/raw?url=';
 
+// UI helpers
 function setUpdatedStamp() {
   const el = document.getElementById('updated');
   if (!el) return;
@@ -32,78 +32,87 @@ async function fetchFeed(url) {
   return xml;
 }
 
-function extractItems(xml, max = 10) {
-  const items = Array.from(xml.querySelectorAll('item, entry')).slice(0, max);
-  const feedTitle = xml.querySelector('channel > title, feed > title')?.textContent?.trim() || '';
-  return items.map(node => {
+// Extract up to `max` items and the feed title
+function extractFeed(xml, max = 5) {
+  const feedTitle = xml.querySelector('channel > title, feed > title')?.textContent?.trim() || 'Feed';
+  const nodes = Array.from(xml.querySelectorAll('item, entry'));
+  // Sort newest first inside the feed
+  const sorted = nodes.sort((a, b) => {
+    const ta = Date.parse(a.querySelector('pubDate, updated, published')?.textContent || '') || 0;
+    const tb = Date.parse(b.querySelector('pubDate, updated, published')?.textContent || '') || 0;
+    return tb - ta;
+  }).slice(0, max);
+
+  const items = sorted.map(node => {
     const title = node.querySelector('title')?.textContent?.trim() || 'Untitled';
     const linkEl = node.querySelector('link');
     const href = (linkEl?.getAttribute?.('href')) || (linkEl?.textContent) || '#';
     const link = href && href.startsWith('http') ? href : href?.replace(/^\/+/, 'https://') || '#';
     const pub = node.querySelector('pubDate, updated, published')?.textContent || '';
-    const sourceTitle = feedTitle || (link && link !== '#' ? new URL(link, location.href).hostname : 'Feed');
     const desc = node.querySelector('description, summary, content')?.textContent || '';
-    return { title, link, pub, sourceTitle, desc };
+    return { title, link, pub, desc };
   });
+
+  return { feedTitle, items };
 }
 
-function renderArticles(allItems) {
-  const grid = document.getElementById('articles');
-  grid.innerHTML = '';
-  allItems.forEach(item => {
+function renderFeedSection(container, title, items) {
+  // Section heading
+  const h2 = document.createElement('h2');
+  h2.textContent = title;
+  container.appendChild(h2);
+
+  // Grid of cards for this feed
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  items.forEach(item => {
     const card = document.createElement('article');
     card.className = 'card';
     const dateStr = item.pub ? new Date(item.pub).toLocaleString() : '';
     const short = item.desc ? item.desc.replace(/<[^>]*>/g, '').slice(0, 200) : '';
     card.innerHTML = `
       <h3><a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a></h3>
-      <div class="meta"><span class="source">${item.sourceTitle}</span>${dateStr ? ' · <span>' + dateStr + '</span>' : ''}</div>
-      ${short ? '<div>' + short + '…</div>' : ''}
+      <div class="meta">${dateStr ? `<span>${dateStr}</span>` : ''}</div>
+      ${short ? `<div>${short}…</div>` : ''}
     `;
     grid.appendChild(card);
   });
+  container.appendChild(grid);
 }
 
 async function refresh() {
   const status = document.getElementById('status');
-  const grid = document.getElementById('articles');
-  grid.innerHTML = '';
+  const articlesRoot = document.getElementById('articles');
+  articlesRoot.innerHTML = '';
   status.textContent = 'Loading feeds…';
 
+  // Fetch feeds in the same order as FEEDS, each limited to 5 items
   const results = await Promise.allSettled(
     FEEDS.map(async (url) => {
-      try {
-        const xml = await fetchFeed(url);
-        const items = extractItems(xml, 8);
-        return items;
-      } catch (e) {
-        return { error: true, url, e };
-      }
+      const xml = await fetchFeed(url);
+      return extractFeed(xml, 5);
     })
   );
 
-  const okItems = [];
-  const errors = [];
-  results.forEach((r, i) => {
-    if (r.status === 'fulfilled' && !r.value?.error) {
-      okItems.push(...r.value);
+  // Render feed-by-feed in FEEDS order
+  const failed = [];
+  results.forEach((r, idx) => {
+    if (r.status === 'fulfilled') {
+      const { feedTitle, items } = r.value;
+      renderFeedSection(articlesRoot, feedTitle, items);
     } else {
-      errors.push(FEEDS[i]);
-      // Optional: console.warn('Feed failed', FEEDS[i], r.reason || r.value?.e);
+      failed.push(FEEDS[idx]);
     }
   });
 
-  okItems.sort((a, b) => (Date.parse(b.pub || '') || 0) - (Date.parse(a.pub || '') || 0));
-  renderArticles(okItems);
-
-  status.innerHTML = errors.length
-    ? '<span class="error">Some feeds failed to load:</span> ' + errors.map(u => { try { return new URL(u).hostname; } catch { return u; } }).join(', ')
+  status.innerHTML = failed.length
+    ? '<span class="error">Some feeds failed to load:</span> ' + failed.map(u => { try { return new URL(u).hostname; } catch { return u; } }).join(', ')
     : 'All feeds loaded.';
 
   setUpdatedStamp();
 }
 
-// Wire up once DOM is ready (defer attribute ensures this runs after HTML)
+// Wire up after DOM is ready (defer in <script> tag ensures this file loads after HTML)
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
   refresh();
