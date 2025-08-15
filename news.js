@@ -1,21 +1,28 @@
 // ===== Edit your feeds here =====
 const FEEDS = [
+  // Danmark
   'https://www.dr.dk/nyheder/service/feeds/senestenyt',
   'https://www.dr.dk/nyheder/service/feeds/politik',
   'https://www.dr.dk/nyheder/service/feeds/sporten',
   'https://www.dr.dk/nyheder/service/feeds/viden',
+
+  // Norway
   'https://www.nrk.no/nyheter/siste.rss',
-  'https://ing.dk/rss/traffik',
-  'https://www.ing.dk/rss',
-  'https://www.ing.dk/rss/traffik',
+
+  // Transport/urbanism
+  'https://ing.dk/rss/trafik',
   'https://www.cyklistforbundet.dk/rss/nyheder',
-  'http://9to5mac.com/feed/',
-  'https://www.techradar.com/rss',
-  'http://feeds.howtogeek.com/HowToGeek',
-  'https://hackaday.com/blog/feed/',
+
+  // Tech
   'https://feeds.arstechnica.com/arstechnica/index/',
-  'http://news.ycombinator.com/rss',
-  'http://feeds.ign.com/ign/games-all',
+  'https://www.techradar.com/rss',
+  'https://9to5mac.com/feed/',
+  'https://feeds.howtogeek.com/HowToGeek',
+  'https://news.ycombinator.com/rss',
+  'https://hackaday.com/blog/feed/',
+
+  // Gaming
+  'https://feeds.ign.com/ign/games-all',
   'https://www.eurogamer.net/?format=rss',
   'https://www.pcgamer.com/rss/'
 ];
