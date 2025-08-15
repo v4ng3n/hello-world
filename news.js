@@ -54,69 +54,55 @@ async function fetchFeed(url) {
   return xml;
 }
 
-// ---- Image extraction helpers ----
+/* -------- Image helpers -------- */
 function getAttr(el, names) {
   for (const n of names) {
-    const v = el.getAttribute?.(n);
+    const v = el?.getAttribute?.(n);
     if (v) return v;
   }
   return '';
 }
-
 function pickFirstImgFromHTML(htmlString) {
   if (!htmlString) return '';
   const doc = new DOMParser().parseFromString(htmlString, 'text/html');
   const img = doc.querySelector('img[src]');
   return img ? img.getAttribute('src') : '';
 }
-
 function absolutize(url) {
   if (!url) return '';
   try {
     return new URL(url, location.href).href;
   } catch {
-    // crude fix for protocol-relative //example.com/img.jpg
     if (url.startsWith('//')) return 'https:' + url;
-    // if it looks like a bare path, we can’t safely absolutize without the article URL context
     return url;
   }
 }
-
 function extractImageFromItem(node) {
   // 1) <enclosure type="image/*" url="...">
   const enc = node.querySelector('enclosure[url]');
   if (enc && /image\//i.test(enc.getAttribute('type') || '')) {
     return absolutize(enc.getAttribute('url'));
   }
-
-  // 2) <media:content>, <media:thumbnail> (common in many feeds)
+  // 2) <media:content> / <media:thumbnail>
   const mediaContent = node.getElementsByTagName('media:content')[0];
-  if (mediaContent) {
-    return absolutize(getAttr(mediaContent, ['url', 'src']));
-  }
+  if (mediaContent) return absolutize(getAttr(mediaContent, ['url', 'src']));
   const mediaThumb = node.getElementsByTagName('media:thumbnail')[0];
-  if (mediaThumb) {
-    return absolutize(getAttr(mediaThumb, ['url', 'src']));
-  }
-
-  // 3) <content:encoded> or <description> (HTML; try to find first <img>)
+  if (mediaThumb) return absolutize(getAttr(mediaThumb, ['url', 'src']));
+  // 3) First <img> in content/description
   const contentEncoded = node.getElementsByTagName('content:encoded')[0]?.textContent || '';
   const fromContent = pickFirstImgFromHTML(contentEncoded);
   if (fromContent) return absolutize(fromContent);
-
   const description = node.querySelector('description')?.textContent || '';
   const fromDesc = pickFirstImgFromHTML(description);
   if (fromDesc) return absolutize(fromDesc);
-
   return '';
 }
 
-// Extract up to `max` items and the feed title (now with image)
+/* ---- Extract up to 5 items per feed (newest first) ---- */
 function extractFeed(xml, max = 5) {
   const feedTitle = xml.querySelector('channel > title, feed > title')?.textContent?.trim() || 'Feed';
   const nodes = Array.from(xml.querySelectorAll('item, entry'));
 
-  // Sort newest first inside the feed
   const sorted = nodes.sort((a, b) => {
     const ta = Date.parse(a.querySelector('pubDate, updated, published')?.textContent || '') || 0;
     const tb = Date.parse(b.querySelector('pubDate, updated, published')?.textContent || '') || 0;
@@ -137,9 +123,8 @@ function extractFeed(xml, max = 5) {
   return { feedTitle, items };
 }
 
-// ---- Rendering ----
+/* ---- Render: title on top, 5 cards in one horizontal row; photo under text ---- */
 function renderFeedSection(container, title, items) {
-  // If your HTML currently uses a vertical list, keep that:
   const section = document.createElement('section');
   section.className = 'feed-section';
 
@@ -147,8 +132,8 @@ function renderFeedSection(container, title, items) {
   h2.textContent = title;
   section.appendChild(h2);
 
-  const list = document.createElement('div');
-  list.className = 'articles-list';
+  const row = document.createElement('div');
+  row.className = 'articles-row';
 
   items.forEach(item => {
     const card = document.createElement('article');
@@ -156,23 +141,25 @@ function renderFeedSection(container, title, items) {
     const dateStr = item.pub ? new Date(item.pub).toLocaleString() : '';
     const short = item.desc ? item.desc.replace(/<[^>]*>/g, '').slice(0, 200) : '';
     const thumb = item.img ? `<img class="thumb" src="${item.img}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '';
+
+    // text first, then image
     card.innerHTML = `
-      ${thumb}
       <h3><a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a></h3>
       <div class="meta">${dateStr ? `<span>${dateStr}</span>` : ''}</div>
       ${short ? `<div>${short}…</div>` : ''}
+      ${thumb}
     `;
-    list.appendChild(card);
+    row.appendChild(card);
   });
 
-  section.appendChild(list);
+  section.appendChild(row);
   container.appendChild(section);
 }
 
 async function refresh() {
   const status = document.getElementById('status');
-  const articlesRoot = document.getElementById('articles');
-  articlesRoot.innerHTML = '';
+  const root = document.getElementById('articles');
+  root.innerHTML = '';
   status.textContent = 'Loading feeds…';
 
   const results = await Promise.allSettled(
@@ -186,7 +173,7 @@ async function refresh() {
   results.forEach((r, idx) => {
     if (r.status === 'fulfilled') {
       const { feedTitle, items } = r.value;
-      renderFeedSection(articlesRoot, feedTitle, items);
+      renderFeedSection(root, feedTitle, items);
     } else {
       failed.push(FEEDS[idx]);
     }
