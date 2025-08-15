@@ -54,7 +54,64 @@ async function fetchFeed(url) {
   return xml;
 }
 
-// Extract up to `max` items and the feed title
+// ---- Image extraction helpers ----
+function getAttr(el, names) {
+  for (const n of names) {
+    const v = el.getAttribute?.(n);
+    if (v) return v;
+  }
+  return '';
+}
+
+function pickFirstImgFromHTML(htmlString) {
+  if (!htmlString) return '';
+  const doc = new DOMParser().parseFromString(htmlString, 'text/html');
+  const img = doc.querySelector('img[src]');
+  return img ? img.getAttribute('src') : '';
+}
+
+function absolutize(url) {
+  if (!url) return '';
+  try {
+    return new URL(url, location.href).href;
+  } catch {
+    // crude fix for protocol-relative //example.com/img.jpg
+    if (url.startsWith('//')) return 'https:' + url;
+    // if it looks like a bare path, we can’t safely absolutize without the article URL context
+    return url;
+  }
+}
+
+function extractImageFromItem(node) {
+  // 1) <enclosure type="image/*" url="...">
+  const enc = node.querySelector('enclosure[url]');
+  if (enc && /image\//i.test(enc.getAttribute('type') || '')) {
+    return absolutize(enc.getAttribute('url'));
+  }
+
+  // 2) <media:content>, <media:thumbnail> (common in many feeds)
+  const mediaContent = node.getElementsByTagName('media:content')[0];
+  if (mediaContent) {
+    return absolutize(getAttr(mediaContent, ['url', 'src']));
+  }
+  const mediaThumb = node.getElementsByTagName('media:thumbnail')[0];
+  if (mediaThumb) {
+    return absolutize(getAttr(mediaThumb, ['url', 'src']));
+  }
+
+  // 3) <content:encoded> or <description> (HTML; try to find first <img>)
+  const contentEncoded = node.getElementsByTagName('content:encoded')[0]?.textContent || '';
+  const fromContent = pickFirstImgFromHTML(contentEncoded);
+  if (fromContent) return absolutize(fromContent);
+
+  const description = node.querySelector('description')?.textContent || '';
+  const fromDesc = pickFirstImgFromHTML(description);
+  if (fromDesc) return absolutize(fromDesc);
+
+  return '';
+}
+
+// Extract up to `max` items and the feed title (now with image)
 function extractFeed(xml, max = 5) {
   const feedTitle = xml.querySelector('channel > title, feed > title')?.textContent?.trim() || 'Feed';
   const nodes = Array.from(xml.querySelectorAll('item, entry'));
@@ -73,23 +130,23 @@ function extractFeed(xml, max = 5) {
     const link = href && href.startsWith('http') ? href : href?.replace(/^\/+/, 'https://') || '#';
     const pub = node.querySelector('pubDate, updated, published')?.textContent || '';
     const desc = node.querySelector('description, summary, content')?.textContent || '';
-    return { title, link, pub, desc };
+    const img = extractImageFromItem(node);
+    return { title, link, pub, desc, img };
   });
 
   return { feedTitle, items };
 }
 
+// ---- Rendering ----
 function renderFeedSection(container, title, items) {
-  // Wrap each feed in its own section so the heading sits above its articles
+  // If your HTML currently uses a vertical list, keep that:
   const section = document.createElement('section');
   section.className = 'feed-section';
 
-  // Title
   const h2 = document.createElement('h2');
   h2.textContent = title;
   section.appendChild(h2);
 
-  // Vertical list of articles
   const list = document.createElement('div');
   list.className = 'articles-list';
 
@@ -98,7 +155,9 @@ function renderFeedSection(container, title, items) {
     card.className = 'card';
     const dateStr = item.pub ? new Date(item.pub).toLocaleString() : '';
     const short = item.desc ? item.desc.replace(/<[^>]*>/g, '').slice(0, 200) : '';
+    const thumb = item.img ? `<img class="thumb" src="${item.img}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '';
     card.innerHTML = `
+      ${thumb}
       <h3><a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a></h3>
       <div class="meta">${dateStr ? `<span>${dateStr}</span>` : ''}</div>
       ${short ? `<div>${short}…</div>` : ''}
@@ -116,7 +175,6 @@ async function refresh() {
   articlesRoot.innerHTML = '';
   status.textContent = 'Loading feeds…';
 
-  // Fetch feeds in the same order as FEEDS, each limited to 5 items
   const results = await Promise.allSettled(
     FEEDS.map(async (url) => {
       const xml = await fetchFeed(url);
@@ -124,7 +182,6 @@ async function refresh() {
     })
   );
 
-  // Render feed-by-feed in FEEDS order
   const failed = [];
   results.forEach((r, idx) => {
     if (r.status === 'fulfilled') {
@@ -142,7 +199,6 @@ async function refresh() {
   setUpdatedStamp();
 }
 
-// Wire up
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
   refresh();
