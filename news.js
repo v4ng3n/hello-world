@@ -58,6 +58,7 @@ async function fetchFeed(url) {
 function extractFeed(xml, max = 5) {
   const feedTitle = xml.querySelector('channel > title, feed > title')?.textContent?.trim() || 'Feed';
   const nodes = Array.from(xml.querySelectorAll('item, entry'));
+
   // Sort newest first inside the feed
   const sorted = nodes.sort((a, b) => {
     const ta = Date.parse(a.querySelector('pubDate, updated, published')?.textContent || '') || 0;
@@ -79,14 +80,19 @@ function extractFeed(xml, max = 5) {
 }
 
 function renderFeedSection(container, title, items) {
-  // Section heading
+  // Wrap each feed in its own section so the heading sits above its articles
+  const section = document.createElement('section');
+  section.className = 'feed-section';
+
+  // Title
   const h2 = document.createElement('h2');
   h2.textContent = title;
-  container.appendChild(h2);
+  section.appendChild(h2);
 
-  // Grid of cards for this feed
-  const grid = document.createElement('div');
-  grid.className = 'grid';
+  // Vertical list of articles
+  const list = document.createElement('div');
+  list.className = 'articles-list';
+
   items.forEach(item => {
     const card = document.createElement('article');
     card.className = 'card';
@@ -97,9 +103,11 @@ function renderFeedSection(container, title, items) {
       <div class="meta">${dateStr ? `<span>${dateStr}</span>` : ''}</div>
       ${short ? `<div>${short}…</div>` : ''}
     `;
-    grid.appendChild(card);
+    list.appendChild(card);
   });
-  container.appendChild(grid);
+
+  section.appendChild(list);
+  container.appendChild(section);
 }
 
 async function refresh() {
@@ -134,7 +142,7 @@ async function refresh() {
   setUpdatedStamp();
 }
 
-// Wire up after DOM is ready (defer in <script> tag ensures this file loads after HTML)
+// Wire up
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshBtn')?.addEventListener('click', refresh);
   refresh();
