@@ -6,23 +6,30 @@
   <title>News – RSS Reader</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    .grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
-    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+    /* Layout for this page */
+    .toolbar { display:flex; gap:.5rem; align-items:center; margin:.5rem 0 1rem; flex-wrap:wrap; }
+    .toolbar button { padding:.4rem .8rem; border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; }
+    .toolbar button:hover { text-decoration: underline; }
+
+    /* One section per feed */
+    .feed-section { margin: 1.25rem 0; }
+    .feed-section h2 { margin: 0 0 .5rem 0; font-size: 1.25rem; }
+
+    /* Articles listed vertically */
+    .articles-list { display: flex; flex-direction: column; gap: .75rem; }
+
+    /* Reuse your card look */
     .card {
       background: #fff; border-radius: 8px; padding: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       display: flex; flex-direction: column; gap: 0.5rem;
     }
     .card h3 { margin: 0; font-size: 1.05rem; }
     .meta { font-size: 0.9rem; color: #555; }
-    .source { font-weight: bold; }
     .error { color: #b00020; }
     code.inline { background: #eee; padding: 0.05rem 0.3rem; border-radius: 4px; }
-    .toolbar { display:flex; gap:.5rem; align-items:center; margin:.5rem 0 1rem; flex-wrap:wrap; }
-    .toolbar button { padding:.4rem .8rem; border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; }
-    .toolbar button:hover { text-decoration: underline; }
   </style>
-  <!-- Load JS from an external file to satisfy CSP -->
-  <script src="news.js?v=2" defer></script>
+  <!-- Cache-bust the JS whenever you change feeds -->
+  <script src="news.js?v=3" defer></script>
 </head>
 <body>
   <nav>
@@ -33,7 +40,7 @@
 
   <main>
     <h1>News</h1>
-    <p>Edit the feeds directly in <code class="inline">news.js</code> (the <code class="inline">FEEDS</code> array). Then redeploy.</p>
+    <p>Edit your feeds in <code class="inline">news.js</code> (the <code class="inline">FEEDS</code> array), then redeploy.</p>
 
     <div class="toolbar">
       <button id="refreshBtn" type="button">Refresh</button>
@@ -41,7 +48,7 @@
     </div>
 
     <div id="status" class="meta"></div>
-    <div id="articles" class="grid"></div>
+    <div id="articles"></div>
   </main>
 </body>
 </html>
