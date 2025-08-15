@@ -1,13 +1,23 @@
 // ===== Edit your feeds here =====
 const FEEDS = [
+  'https://www.dr.dk/nyheder/service/feeds/senestenyt',
+  'https://www.dr.dk/nyheder/service/feeds/politik',
+  'https://www.dr.dk/nyheder/service/feeds/sporten',
+  'https://www.dr.dk/nyheder/service/feeds/viden',
+  'https://www.nrk.no/nyheter/siste.rss',
   'https://ing.dk/rss/traffik',
-  'https://www.dr.dk/nyheder/service/feeds/allenyheder',
-  'https://nrkbeta.no/feed/',
-  'https://feeds.arstechnica.com/arstechnica/index/',
-  'http://feeds.howtogeek.com/HowToGeek',
-  'http://feeds.ign.com/ign/games-all',
+  'https://www.ing.dk/rss',
+  'https://www.ing.dk/rss/traffik',
+  'https://www.cyklistforbundet.dk/rss/nyheder',
   'http://9to5mac.com/feed/',
-  'http://news.ycombinator.com/rss'
+  'https://www.techradar.com/rss',
+  'http://feeds.howtogeek.com/HowToGeek',
+  'https://hackaday.com/blog/feed/',
+  'https://feeds.arstechnica.com/arstechnica/index/',
+  'http://news.ycombinator.com/rss',
+  'http://feeds.ign.com/ign/games-all',
+  'https://www.eurogamer.net/?format=rss',
+  'https://www.pcgamer.com/rss/'
 ];
 
 // Always use AllOrigins to bypass CORS
