@@ -6,37 +6,43 @@
   <title>News – RSS Reader</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Layout for this page */
+    /* Toolbar */
     .toolbar { display:flex; gap:.5rem; align-items:center; margin:.5rem 0 1rem; flex-wrap:wrap; }
     .toolbar button { padding:.4rem .8rem; border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; }
     .toolbar button:hover { text-decoration: underline; }
+    .meta { font-size: 0.9rem; color: #555; }
+    .error { color: #b00020; }
+    code.inline { background: #eee; padding: 0.05rem 0.3rem; border-radius: 4px; }
 
     /* One section per feed */
     .feed-section { margin: 1.25rem 0; }
     .feed-section h2 { margin: 0 0 .5rem 0; font-size: 1.25rem; }
 
-    /* Articles listed vertically */
-    .articles-list { display: flex; flex-direction: column; gap: .75rem; }
+    /* Row of 5 cards; keeps one row with horizontal scroll on narrow screens */
+    .articles-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      overflow-x: auto;
+      padding-bottom: .25rem; /* gives a tiny space for scrollbars */
+    }
 
-    /* Article thumbnail */
-    .card .thumb {
-    width: 100%;
-    max-height: 180px;           /* adjust if you want taller images */
-    object-fit: cover;
-    border-radius: 8px; }
-
-    /* Reuse your card look */
+    /* Card */
     .card {
       background: #fff; border-radius: 8px; padding: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       display: flex; flex-direction: column; gap: 0.5rem;
+      min-width: 220px; /* ensures reasonable width when scrolling horizontally */
     }
     .card h3 { margin: 0; font-size: 1.05rem; }
-    .meta { font-size: 0.9rem; color: #555; }
-    .error { color: #b00020; }
-    code.inline { background: #eee; padding: 0.05rem 0.3rem; border-radius: 4px; }
+    .thumb {
+      width: 100%;
+      max-height: 180px;        /* adjust if you want taller images */
+      object-fit: cover;
+      border-radius: 8px;
+    }
   </style>
-  <!-- Cache-bust the JS whenever you change feeds -->
-  <script src="news.js?v=4" defer></script>
+  <!-- Bump this number when you edit news.js -->
+  <script src="news.js?v=5" defer></script>
 </head>
 <body>
   <nav>
