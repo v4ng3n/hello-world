@@ -1,10 +1,13 @@
 // ===== Edit your feeds here =====
 const FEEDS = [
-
   'https://ing.dk/rss/traffik',
-'https://www.dr.dk/nyheder/service/feeds/allenyheder',
+  'https://www.dr.dk/nyheder/service/feeds/allenyheder',
   'https://nrkbeta.no/feed/',
-  'https://feeds.arstechnica.com/arstechnica/index/'
+  'https://feeds.arstechnica.com/arstechnica/index/',
+  'http://feeds.howtogeek.com/HowToGeek',
+  'http://feeds.ign.com/ign/games-all',
+  'http://9to5mac.com/feed/',
+  'http://news.ycombinator.com/rss'
 ];
 
 // Always use AllOrigins to bypass CORS
