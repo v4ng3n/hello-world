@@ -18,13 +18,18 @@
     .feed-section { margin: 1.25rem 0; }
     .feed-section h2 { margin: 0 0 .5rem 0; font-size: 1.25rem; }
 
-    /* Row of 5 cards; keeps one row with horizontal scroll on narrow screens */
+    /* Row of cards: single horizontal line with scroll */
     .articles-row {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      display: flex;
       gap: 1rem;
       overflow-x: auto;
-      padding-bottom: .25rem; /* gives a tiny space for scrollbars */
+      padding-bottom: .25rem;   /* room for scrollbar */
+      scroll-snap-type: x proximity; /* optional nicety */
+    }
+
+    .articles-row .card {
+      min-width: 240px;         /* ensures readable width while scrolling */
+      scroll-snap-align: start; /* optional nicety */
     }
 
     /* Card */
@@ -42,7 +47,7 @@
     }
   </style>
   <!-- Bump this number when you edit news.js -->
-  <script src="news.js?v=6" defer></script>
+  <script src="news.js?v=7" defer></script>
 </head>
 <body>
   <nav>
