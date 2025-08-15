@@ -7,7 +7,7 @@ const FEEDS = [
   'https://www.dr.dk/nyheder/service/feeds/viden',
 
   // Norway
-  'https://www.nrk.no/nyheter/siste.rss',
+  'https://www.nrk.no/nyheder/siste.rss',
 
   // Transport/urbanism
   'https://ing.dk/rss/trafik',
@@ -30,12 +30,23 @@ const FEEDS = [
 // Always use AllOrigins to bypass CORS
 const PROXY = 'https://api.allorigins.win/raw?url=';
 
+// ---- Date helpers ----
+function pad2(n) { return String(n).padStart(2, '0'); }
+function parseDateSafe(s) {
+  const t = Date.parse(s || '');
+  return isNaN(t) ? null : new Date(t);
+}
+function formatEU(dt) {
+  const d = pad2(dt.getDate()), m = pad2(dt.getMonth() + 1), y = dt.getFullYear();
+  const hh = pad2(dt.getHours()), mm = pad2(dt.getMinutes()), ss = pad2(dt.getSeconds());
+  return `${d}.${m}.${y}, ${hh}.${mm}.${ss}`;
+}
+
 // UI helpers
 function setUpdatedStamp() {
   const el = document.getElementById('updated');
   if (!el) return;
-  const now = new Date();
-  el.textContent = `Updated: ${now.toLocaleTimeString([], { hour12: false })}`;
+  el.textContent = `Updated: ${formatEU(new Date())}`;
 }
 
 async function fetchViaProxy(url) {
@@ -114,7 +125,7 @@ function extractFeed(xml, max = 10) {
     const linkEl = node.querySelector('link');
     const href = (linkEl?.getAttribute?.('href')) || (linkEl?.textContent) || '#';
     const link = href && href.startsWith('http') ? href : href?.replace(/^\/+/, 'https://') || '#';
-    const pub = node.querySelector('pubDate, updated, published')?.textContent || '';
+    const pub = parseDateSafe(node.querySelector('pubDate, updated, published')?.textContent || '');
     const desc = node.querySelector('description, summary, content')?.textContent || '';
     const img = extractImageFromItem(node);
     return { title, link, pub, desc, img };
@@ -138,11 +149,10 @@ function renderFeedSection(container, title, items) {
   items.forEach(item => {
     const card = document.createElement('article');
     card.className = 'card';
-    const dateStr = item.pub ? new Date(item.pub).toLocaleString() : '';
+    const dateStr = item.pub ? formatEU(item.pub) : '';
     const short = item.desc ? item.desc.replace(/<[^>]*>/g, '').slice(0, 200) : '';
     const thumb = item.img ? `<img class="thumb" src="${item.img}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '';
 
-    // text first, then image
     card.innerHTML = `
       <h3><a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a></h3>
       <div class="meta">${dateStr ? `<span>${dateStr}</span>` : ''}</div>
