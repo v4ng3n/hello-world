@@ -98,8 +98,8 @@ function extractImageFromItem(node) {
   return '';
 }
 
-/* ---- Extract up to 5 items per feed (newest first) ---- */
-function extractFeed(xml, max = 5) {
+/* ---- Extract up to 10 items per feed (newest first) ---- */
+function extractFeed(xml, max = 10) {
   const feedTitle = xml.querySelector('channel > title, feed > title')?.textContent?.trim() || 'Feed';
   const nodes = Array.from(xml.querySelectorAll('item, entry'));
 
@@ -123,7 +123,7 @@ function extractFeed(xml, max = 5) {
   return { feedTitle, items };
 }
 
-/* ---- Render: title on top, 5 cards in one horizontal row; photo under text ---- */
+/* ---- Render: title on top, 10 cards in one horizontal row; photo under text ---- */
 function renderFeedSection(container, title, items) {
   const section = document.createElement('section');
   section.className = 'feed-section';
@@ -165,7 +165,7 @@ async function refresh() {
   const results = await Promise.allSettled(
     FEEDS.map(async (url) => {
       const xml = await fetchFeed(url);
-      return extractFeed(xml, 5);
+      return extractFeed(xml, 10);
     })
   );
 
