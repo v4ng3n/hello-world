@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Transport – Bybanen</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .toolbar { display:flex; gap:.5rem; align-items:center; margin:.5rem 0 1rem; flex-wrap:wrap; }
+    .toolbar button { padding:.4rem .8rem; border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; }
+    .toolbar button:hover { text-decoration: underline; }
+    .meta { font-size: 0.9rem; color: #555; }
+
+    .section { margin: 1.25rem 0; }
+    .section h2 { margin: 0 0 .5rem 0; font-size: 1.25rem; }
+
+    /* Two columns for Wergeland directions on wide screens, stacks on small */
+    .columns { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    @media (min-width: 780px) { .columns { grid-template-columns: 1fr 1fr; } }
+
+    .card { background:#fff; border-radius:8px; padding:1rem; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    .card h3 { margin:0 0 .5rem 0; font-size:1.05rem; }
+
+    /* Departure rows */
+    .rows { display:flex; flex-direction:column; gap:.5rem; }
+    .row { display:flex; align-items:baseline; gap:.6rem; }
+    .line { font-weight:bold; min-width:2.2rem; }
+    .dest { flex:1; }
+    .when { color:#333; min-width:6rem; text-align:right; }
+
+    .error { color:#b00020; }
+  </style>
+  <script src="transport.js?v=1" defer></script>
+</head>
+<body>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="weather.html">Weather</a>
+    <a href="news.html">News</a>
+    <a href="transport.html" aria-current="page">Transport</a>
+  </nav>
+
+  <main>
+    <h1>Bybanen – Live departures</h1>
+    <div class="toolbar">
+      <button id="refreshBtn" type="button">Refresh</button>
+      <div id="updated" class="meta" aria-live="polite"></div>
+    </div>
+    <div id="status" class="meta"></div>
+
+    <!-- Wergeland -->
+    <section class="section" id="wergeland">
+      <h2>Wergeland</h2>
+      <div class="columns">
+        <div class="card">
+          <h3>Towards Byparken</h3>
+          <div class="rows" id="wergeland-to-byparken"></div>
+        </div>
+        <div class="card">
+          <h3>Towards Bergen lufthavn</h3>
+          <div class="rows" id="wergeland-to-airport"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- City Centre -->
+    <section class="section" id="byparken">
+      <h2>Byparken (City Centre)</h2>
+      <div class="card">
+        <div class="rows" id="byparken-rows"></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
