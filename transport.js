@@ -112,12 +112,14 @@ async function refresh() {
   try {
     // --- Wergeland ---
     const wCalls = normalizeCalls(await fetchDepartures(STOPS.wergeland));
-    // Split by destination keyword (Line 1 directions)
-    const towardsByparken = wCalls.filter(c => /byparken/i.test(c.dest));
-    const towardsAirport  = wCalls.filter(c => /(lufthavn|flesland)/i.test(c.dest));
 
-    renderRows('wergeland-to-byparken', towardsByparken);
-    renderRows('wergeland-to-airport',  towardsAirport);
+// Robust split: anything explicitly to Airport → airport; everything else → Byparken
+const isAirport = /(lufthavn|flesland)/i;
+const towardsAirport  = wCalls.filter(c => isAirport.test(c.dest));
+const towardsByparken = wCalls.filter(c => !isAirport.test(c.dest));
+
+renderRows('wergeland-to-byparken', towardsByparken);
+renderRows('wergeland-to-airport',  towardsAirport);
 
     // --- Byparken (all Bybanen departures) ---
     const bCalls = normalizeCalls(await fetchDepartures(STOPS.byparken));
