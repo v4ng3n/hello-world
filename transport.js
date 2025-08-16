@@ -11,7 +11,7 @@ const STOPS = {
 };
 
 // How many upcoming departures to show per list
-const LIMIT_PER_LIST = 8; // tweak as you like
+const LIMIT_PER_LIST = 3; // tweak as you like
 
 // === Date helpers (DD.MM.YYYY, HH.MM.SS) ===
 const pad2 = n => String(n).padStart(2, '0');
