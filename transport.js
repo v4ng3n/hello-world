@@ -1,6 +1,6 @@
 // === Config ===
 const ENTUR_URL = 'https://api.entur.io/journey-planner/v3/graphql';
-const ET_CLIENT_NAME = 'yourdomain-no-pages'; // set your own identifier (raises rate limits)
+const ET_CLIENT_NAME = 'bybanen-pizza-express'; // set your own identifier (raises rate limits)
 
 // NSR StopPlace IDs
 const STOPS = {
@@ -11,7 +11,7 @@ const STOPS = {
 };
 
 // How many upcoming departures to show per list
-const LIMIT_PER_LIST = 8; // tweak as you like
+const LIMIT_PER_LIST = 5; // tweak as you like
 
 // === Date helpers (DD.MM.YYYY, HH.MM.SS) ===
 const pad2 = n => String(n).padStart(2, '0');
