@@ -6,13 +6,6 @@ const FEEDS = [
   'https://www.dr.dk/nyheder/service/feeds/sporten',
   'https://www.dr.dk/nyheder/service/feeds/viden',
 
-  // Norway
-  'https://www.nrk.no/nyheder/siste.rss',
-
-  // Transport/urbanism
-  'https://ing.dk/rss/trafik',
-  'https://www.cyklistforbundet.dk/rss/nyheder',
-
   // Tech
   'https://feeds.arstechnica.com/arstechnica/index/',
   'https://www.techradar.com/rss',
@@ -23,7 +16,6 @@ const FEEDS = [
 
   // Gaming
   'https://feeds.ign.com/ign/games-all',
-  'https://www.eurogamer.net/?format=rss',
   'https://www.pcgamer.com/rss/'
 ];
 
