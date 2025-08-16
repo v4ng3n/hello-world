@@ -11,7 +11,7 @@ const STOPS = {
 };
 
 // How many upcoming departures to show per list
-const LIMIT_PER_LIST = 3; // tweak as you like
+const LIMIT_PER_LIST = 8; // tweak as you like
 
 // === Date helpers (DD.MM.YYYY, HH.MM.SS) ===
 const pad2 = n => String(n).padStart(2, '0');
@@ -113,13 +113,13 @@ async function refresh() {
     // --- Wergeland ---
     const wCalls = normalizeCalls(await fetchDepartures(STOPS.wergeland));
 
-// Robust split: anything explicitly to Airport → airport; everything else → Byparken
-const isAirport = /(lufthavn|flesland)/i;
-const towardsAirport  = wCalls.filter(c => isAirport.test(c.dest));
-const towardsByparken = wCalls.filter(c => !isAirport.test(c.dest));
+    // Robust split: anything explicitly to Airport → airport; everything else → Byparken
+    const isAirport = /(lufthavn|flesland)/i;
+    const towardsAirport  = wCalls.filter(c => isAirport.test(c.dest));
+    const towardsByparken = wCalls.filter(c => !isAirport.test(c.dest));
 
-renderRows('wergeland-to-byparken', towardsByparken);
-renderRows('wergeland-to-airport',  towardsAirport);
+    renderRows('wergeland-to-byparken', towardsByparken);
+    renderRows('wergeland-to-airport',  towardsAirport);
 
     // --- Byparken (all Bybanen departures) ---
     const bCalls = normalizeCalls(await fetchDepartures(STOPS.byparken));
